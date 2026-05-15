@@ -15,42 +15,8 @@ const ChatPage = {
 
     document.getElementById('app').innerHTML = `
       <div class="flex flex-col" style="height:100vh">
-        <header class="bg-teal-600 text-white px-4 py-3 flex justify-between items-center flex-shrink-0">
-          <div class="flex items-center gap-3">
-            <button onclick="navigate('#teams')" class="text-sm opacity-80 hover:opacity-100 hidden md:inline">← 팀 목록</button>
-            <button id="cp-hamburger" class="md:hidden p-1">☰</button>
-            <span class="font-bold text-white hidden md:inline">TaskFlow</span>
-            <span class="text-teal-200 hidden md:inline">|</span>
-            <span class="font-medium truncate max-w-32 md:max-w-none">${this.teamName}</span>
-          </div>
-          <div class="flex items-center gap-3">
-            <span id="cp-poll-indicator" class="text-xs text-teal-200">● 5초마다 새로고침</span>
-            <nav class="hidden md:flex items-center gap-1">
-              <button onclick="navigate('#kanban')" class="px-3 py-1 rounded text-teal-100 hover:bg-teal-500 text-sm">칸반</button>
-              <button onclick="navigate('#chat')" class="px-3 py-1 rounded bg-teal-500 text-white text-sm font-medium">채팅</button>
-              <button onclick="navigate('#members')" class="px-3 py-1 rounded text-teal-100 hover:bg-teal-500 text-sm">멤버</button>
-            </nav>
-          </div>
-        </header>
-
-        <!-- Mobile menu -->
-        <div id="cp-mobile-menu" class="hidden md:hidden fixed inset-0 z-30 bg-black/50" onclick="this.classList.add('hidden')">
-          <div class="absolute right-0 top-0 h-full w-64 bg-white shadow-xl p-6 space-y-4" onclick="event.stopPropagation()">
-            <div class="font-semibold text-gray-700">${Auth.getUser()?.email || ''}</div>
-            <div class="text-xs text-gray-400">${this.teamName}</div>
-            <hr>
-            <button onclick="navigate('#kanban'); document.getElementById('cp-mobile-menu').classList.add('hidden')"
-                    class="flex items-center gap-2 w-full py-2 text-gray-700">📋 칸반</button>
-            <button onclick="navigate('#chat'); document.getElementById('cp-mobile-menu').classList.add('hidden')"
-                    class="flex items-center gap-2 w-full py-2 text-teal-600 font-medium">💬 채팅</button>
-            <button onclick="navigate('#members'); document.getElementById('cp-mobile-menu').classList.add('hidden')"
-                    class="flex items-center gap-2 w-full py-2 text-gray-700">👥 멤버</button>
-            <button onclick="navigate('#teams'); document.getElementById('cp-mobile-menu').classList.add('hidden')"
-                    class="flex items-center gap-2 w-full py-2 text-gray-700">← 팀 목록</button>
-            <hr>
-            <button onclick="Auth.logout(); navigate('#login')" class="flex items-center gap-2 w-full py-2 text-red-500">🚪 로그아웃</button>
-          </div>
-        </div>
+        <div id="nb-container"></div>
+        <div id="cp-poll-indicator" class="hidden text-xs text-center py-1 bg-yellow-50 text-yellow-700 border-b border-yellow-200"></div>
 
         <div id="cp-msgs" class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50"></div>
 
@@ -70,7 +36,11 @@ const ChatPage = {
         </div>
       </div>`;
 
-    document.getElementById('cp-hamburger').onclick = () => document.getElementById('cp-mobile-menu').classList.remove('hidden');
+    NavBar.render(document.getElementById('nb-container'), {
+      teamName: this.teamName,
+      activePage: 'chat',
+      onLogout: () => { Auth.logout(); navigate('#login'); },
+    });
 
     // Focus → poll faster
     document.getElementById('cp-input').onfocus = () => { this._pollDelay = 2000; };
@@ -91,11 +61,10 @@ const ChatPage = {
     const el = document.getElementById('cp-poll-indicator');
     if (!el) return;
     if (ok) {
-      el.textContent = '● 5초마다 새로고침';
-      el.className = 'text-xs text-teal-200';
+      el.classList.add('hidden');
     } else {
       el.textContent = '⚠ 연결 끊김 · 재시도 중';
-      el.className = 'text-xs text-yellow-300';
+      el.classList.remove('hidden');
     }
   },
 

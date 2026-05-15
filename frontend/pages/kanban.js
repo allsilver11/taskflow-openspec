@@ -22,43 +22,7 @@ const KanbanPage = {
 
     document.getElementById('app').innerHTML = `
       <div class="flex flex-col" style="height:100vh">
-        <!-- Header -->
-        <header class="bg-teal-600 text-white px-4 py-3 flex justify-between items-center flex-shrink-0">
-          <div class="flex items-center gap-3">
-            <span class="font-bold text-white hidden md:inline">TaskFlow</span>
-            <button id="kb-hamburger" class="md:hidden p-1">☰</button>
-            <span class="text-teal-200 text-sm hidden md:inline">|</span>
-            <span class="font-medium truncate max-w-32 md:max-w-none">${this.teamName}</span>
-          </div>
-          <nav class="hidden md:flex items-center gap-1">
-            <button onclick="navigate('#kanban')" class="px-3 py-1 rounded bg-teal-500 text-white text-sm font-medium">칸반</button>
-            <button onclick="navigate('#chat')" class="px-3 py-1 rounded text-teal-100 hover:bg-teal-500 text-sm">채팅</button>
-            <button onclick="KanbanPage._toggleMemberPanel()" id="kb-members-btn"
-                    class="px-3 py-1 rounded text-teal-100 hover:bg-teal-500 text-sm">멤버</button>
-            <span class="text-teal-200 text-sm ml-2 mr-1">${Auth.getUser()?.email || ''}</span>
-            <button id="kb-logout" class="text-sm text-teal-200 hover:text-white">로그아웃</button>
-          </nav>
-        </header>
-
-        <!-- Mobile menu -->
-        <div id="kb-mobile-menu" class="hidden md:hidden fixed inset-0 z-30 bg-black/50" onclick="this.classList.add('hidden')">
-          <div class="absolute right-0 top-0 h-full w-64 bg-white shadow-xl p-6 space-y-4" onclick="event.stopPropagation()">
-            <div class="font-bold text-teal-600">TaskFlow</div>
-            <div class="text-sm font-semibold text-gray-700">${this.teamName}</div>
-            <div class="text-xs text-gray-400">${Auth.getUser()?.email || ''}</div>
-            <hr>
-            <button onclick="navigate('#kanban'); document.getElementById('kb-mobile-menu').classList.add('hidden')"
-                    class="flex items-center gap-2 w-full py-2 text-teal-600 font-medium">📋 칸반</button>
-            <button onclick="navigate('#chat'); document.getElementById('kb-mobile-menu').classList.add('hidden')"
-                    class="flex items-center gap-2 w-full py-2 text-gray-700">💬 채팅</button>
-            <button onclick="navigate('#members'); document.getElementById('kb-mobile-menu').classList.add('hidden')"
-                    class="flex items-center gap-2 w-full py-2 text-gray-700">👥 팀 멤버</button>
-            <button onclick="navigate('#teams'); document.getElementById('kb-mobile-menu').classList.add('hidden')"
-                    class="flex items-center gap-2 w-full py-2 text-gray-700">← 팀 목록</button>
-            <hr>
-            <button id="kb-logout-mobile" class="flex items-center gap-2 w-full py-2 text-red-500">🚪 로그아웃</button>
-          </div>
-        </div>
+        <div id="nb-container"></div>
 
         <!-- Filter bar -->
         <div class="bg-white border-b px-4 py-2 flex items-center gap-2 flex-shrink-0 overflow-x-auto">
@@ -133,9 +97,11 @@ const KanbanPage = {
         </div>
       </div>`;
 
-    document.getElementById('kb-logout').onclick = () => { Auth.logout(); navigate('#login'); };
-    document.getElementById('kb-logout-mobile').onclick = () => { Auth.logout(); navigate('#login'); };
-    document.getElementById('kb-hamburger').onclick = () => document.getElementById('kb-mobile-menu').classList.remove('hidden');
+    NavBar.render(document.getElementById('nb-container'), {
+      teamName: this.teamName,
+      activePage: 'kanban',
+      onLogout: () => { Auth.logout(); navigate('#login'); },
+    });
 
     this._mobileColIndex = 0;
     this._showMemberPanel = false;

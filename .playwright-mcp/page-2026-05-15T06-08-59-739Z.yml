@@ -1,0 +1,36 @@
+- generic [ref=e2]:
+  - generic [ref=e26]:
+    - banner [ref=e27]:
+      - generic [ref=e28]:
+        - button "← 팀 목록" [ref=e29] [cursor=pointer]
+        - generic [ref=e30]: Frontiers
+      - navigation [ref=e31]:
+        - button "칸반" [ref=e32] [cursor=pointer]
+        - button "채팅" [ref=e33] [cursor=pointer]
+        - generic [ref=e34]: test2@test.com
+        - button "로그아웃" [ref=e35] [cursor=pointer]
+    - generic [ref=e36]:
+      - generic [ref=e37]: "필터:"
+      - button "전체" [ref=e38] [cursor=pointer]
+      - button "@me" [ref=e39] [cursor=pointer]
+      - button "미할당" [ref=e40] [cursor=pointer]
+    - generic [ref=e42]:
+      - generic [ref=e43]:
+        - generic [ref=e44]:
+          - heading "TODO" [level=2] [ref=e45]
+          - button "+" [ref=e46] [cursor=pointer]
+        - paragraph [ref=e48]: 없음
+      - generic [ref=e49]:
+        - heading "DOING" [level=2] [ref=e51]
+        - generic [ref=e54]:
+          - generic [ref=e55]: test task
+          - button "✕" [ref=e56] [cursor=pointer]
+      - generic [ref=e57]:
+        - heading "DONE" [level=2] [ref=e59]
+        - paragraph [ref=e61]: 없음
+  - generic [ref=e63]:
+    - heading "태스크 추가" [level=3] [ref=e64]
+    - textbox "태스크 이름" [active] [ref=e65]
+    - generic [ref=e66]:
+      - button "추가" [ref=e67] [cursor=pointer]
+      - button "취소" [ref=e68] [cursor=pointer]

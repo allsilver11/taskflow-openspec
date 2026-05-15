@@ -1,0 +1,31 @@
+- generic [ref=e26]:
+  - banner [ref=e27]:
+    - generic [ref=e28]:
+      - button "← 팀 목록" [ref=e29] [cursor=pointer]
+      - generic [ref=e30]: Frontiers
+    - navigation [ref=e31]:
+      - button "칸반" [ref=e32] [cursor=pointer]
+      - button "채팅" [ref=e33] [cursor=pointer]
+      - generic [ref=e34]: test2@test.com
+      - button "로그아웃" [ref=e35] [cursor=pointer]
+  - generic [ref=e36]:
+    - generic [ref=e37]: "필터:"
+    - button "전체" [ref=e38] [cursor=pointer]
+    - button "@me" [ref=e39] [cursor=pointer]
+    - button "미할당" [ref=e40] [cursor=pointer]
+  - generic [ref=e42]:
+    - generic [ref=e43]:
+      - generic [ref=e44]:
+        - heading "TODO" [level=2] [ref=e45]
+        - button "+" [ref=e46] [cursor=pointer]
+      - generic [ref=e70]:
+        - generic [ref=e71]: JWT 미들웨어 구현
+        - button "✕" [ref=e72] [cursor=pointer]
+    - generic [ref=e49]:
+      - heading "DOING" [level=2] [ref=e51]
+      - generic [ref=e74]:
+        - generic [ref=e75]: test task
+        - button "✕" [ref=e76] [cursor=pointer]
+    - generic [ref=e57]:
+      - heading "DONE" [level=2] [ref=e59]
+      - paragraph [ref=e77]: 없음

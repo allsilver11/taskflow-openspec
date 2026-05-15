@@ -33,7 +33,7 @@ def get_current_user(
     payload = auth_service.decode_token(credentials.credentials)
     if not payload:
         raise HTTPException(status_code=401, detail=err("TOKEN_EXPIRED", "인증이 만료되었습니다"))
-    user = db.query(User).filter(User.id == payload.get("sub")).first()
+    user = db.query(User).filter(User.id == int(payload.get("sub", 0))).first()
     if not user:
         raise HTTPException(status_code=401, detail=err("TOKEN_EXPIRED", "인증이 만료되었습니다"))
     return user
@@ -56,7 +56,7 @@ def signup(body: SignupRequest, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
-    token = auth_service.create_access_token({"sub": user.id})
+    token = auth_service.create_access_token(user.id)
     return _user_out(user, token)
 
 
@@ -65,7 +65,7 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == body.email).first()
     if not user or not auth_service.verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail=err("INVALID_CREDENTIALS", "이메일 또는 비밀번호가 일치하지 않습니다"))
-    token = auth_service.create_access_token({"sub": user.id})
+    token = auth_service.create_access_token(user.id)
     return _user_out(user, token)
 
 

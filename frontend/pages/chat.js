@@ -128,7 +128,7 @@ const ChatPage = {
       await apiFetch(`/teams/${this.teamId}/messages`, { method: 'POST', body: JSON.stringify({ content }) });
       input.value = '';
       this._onInput(input);
-      await this._poll();
+      await this._load();
     } catch (e) { if (e.status !== 401) console.error(e.message); }
   },
 

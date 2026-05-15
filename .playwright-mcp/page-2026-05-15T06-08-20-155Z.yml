@@ -1,0 +1,12 @@
+- generic [ref=e11]:
+  - generic [ref=e12]:
+    - heading "내 팀" [level=1] [ref=e13]
+    - button "로그아웃" [ref=e14] [cursor=pointer]
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - generic [ref=e19]: Frontiers
+      - generic [ref=e20]: "초대코드: TTHE-5374"
+    - generic [ref=e21]:
+      - button "떠나기" [ref=e22] [cursor=pointer]
+      - button "입장 →" [ref=e23] [cursor=pointer]
+  - paragraph [ref=e25]: 팀을 떠나야 다른 팀에 합류할 수 있습니다 (1인 1팀)

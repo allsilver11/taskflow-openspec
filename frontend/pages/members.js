@@ -13,7 +13,9 @@ const MembersPage = {
           <div class="flex items-center gap-3">
             <button onclick="navigate('#teams')" class="text-sm opacity-80 hover:opacity-100 hidden md:inline">← 팀 목록</button>
             <button id="mp-hamburger" class="md:hidden p-1">☰</button>
-            <span class="font-bold truncate max-w-32 md:max-w-none">${this.teamName}</span>
+            <span class="font-bold text-white hidden md:inline">TaskFlow</span>
+            <span class="text-teal-200 hidden md:inline">|</span>
+            <span class="font-medium truncate max-w-32 md:max-w-none">${this.teamName}</span>
           </div>
           <nav class="hidden md:flex items-center gap-1">
             <button onclick="navigate('#kanban')" class="px-3 py-1 rounded text-teal-100 hover:bg-teal-500 text-sm">칸반</button>

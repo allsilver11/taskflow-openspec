@@ -41,19 +41,27 @@ const TeamsPage = {
           </div>`;
         formsEl.innerHTML = '<p class="text-xs text-gray-400 text-center">팀을 떠나야 다른 팀에 합류할 수 있습니다 (1인 1팀)</p>';
       } else {
-        listEl.innerHTML = '<p class="text-gray-400 text-center text-sm mb-4">소속된 팀이 없습니다</p>';
+        listEl.innerHTML = `
+          <div class="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-5 text-sm text-blue-700">
+            ℹ 아직 팀에 소속되지 않았습니다. 팀을 만들거나 초대코드로 합류하세요.
+          </div>`;
         formsEl.innerHTML = `
-          <div class="bg-white rounded-xl shadow p-5 mb-4">
-            <h2 class="font-semibold mb-3 text-gray-700">팀 만들기</h2>
-            <input id="tp-new-name" type="text" placeholder="팀 이름 (1-30자)"
-                   class="w-full border rounded-lg px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-teal-400">
-            <button id="tp-create" class="w-full bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700">만들기</button>
-          </div>
-          <div class="bg-white rounded-xl shadow p-5">
-            <h2 class="font-semibold mb-3 text-gray-700">초대코드로 합류</h2>
-            <input id="tp-code" type="text" placeholder="FRNT-2026"
-                   class="w-full border rounded-lg px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-orange-400">
-            <button id="tp-join" class="w-full bg-orange-500 text-white py-2 rounded-lg hover:bg-orange-600">합류하기</button>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="bg-white rounded-xl shadow p-5">
+              <h2 class="font-semibold mb-3 text-gray-700 text-sm">+ 새 팀 만들기</h2>
+              <input id="tp-new-name" type="text" placeholder="팀 이름 (1-30자)"
+                     class="w-full border rounded-lg px-3 py-2 mb-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
+              <div id="tp-create-err" class="hidden mb-2 px-2 py-1.5 rounded bg-red-50 border border-red-300 text-red-700 text-xs"></div>
+              <button id="tp-create" class="w-full bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700 text-sm font-medium">만들기</button>
+            </div>
+            <div class="bg-white rounded-xl shadow p-5">
+              <h2 class="font-semibold mb-3 text-gray-700 text-sm">초대코드로 합류</h2>
+              <input id="tp-code" type="text" placeholder="FRNT-2026"
+                     class="w-full border rounded-lg px-3 py-2 mb-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-400 uppercase">
+              <p class="text-xs text-gray-400 mb-2">형식: 대문자4 + 숫자4 (하이픈 포함)</p>
+              <div id="tp-join-err" class="hidden mb-2 px-2 py-1.5 rounded text-xs"></div>
+              <button id="tp-join" class="w-full bg-orange-500 text-white py-2 rounded-lg hover:bg-orange-600 text-sm font-medium">합류</button>
+            </div>
           </div>`;
         document.getElementById('tp-create').onclick = () => this._createTeam();
         document.getElementById('tp-join').onclick = () => this._joinTeam();
@@ -134,12 +142,25 @@ const TeamsPage = {
   async _joinTeam() {
     const code = document.getElementById('tp-code').value.trim().toUpperCase();
     if (!code) return;
+    const errEl = document.getElementById('tp-join-err');
+    if (errEl) { errEl.textContent = ''; errEl.classList.add('hidden'); }
     try {
       const team = await apiFetch('/teams/join', { method: 'POST', body: JSON.stringify({ invite_code: code }) });
       const listEl = document.getElementById('tp-list');
       listEl.innerHTML = '';
       this._showJoinPreview(team);
-    } catch (e) { if (e.status !== 401) this._showError(e.message); }
+    } catch (e) {
+      if (e.status === 401) return;
+      if (errEl) {
+        errEl.textContent = e.message;
+        errEl.classList.remove('hidden');
+        if (e.status === 409) {
+          errEl.className = 'mb-2 px-2 py-1.5 rounded text-xs bg-yellow-50 border border-yellow-300 text-yellow-700';
+        } else {
+          errEl.className = 'mb-2 px-2 py-1.5 rounded text-xs bg-red-50 border border-red-300 text-red-700';
+        }
+      }
+    }
   },
 
   async _leave(teamId) {

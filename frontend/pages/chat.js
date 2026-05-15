@@ -19,7 +19,9 @@ const ChatPage = {
           <div class="flex items-center gap-3">
             <button onclick="navigate('#teams')" class="text-sm opacity-80 hover:opacity-100 hidden md:inline">← 팀 목록</button>
             <button id="cp-hamburger" class="md:hidden p-1">☰</button>
-            <span class="font-bold truncate max-w-32 md:max-w-none">${this.teamName}</span>
+            <span class="font-bold text-white hidden md:inline">TaskFlow</span>
+            <span class="text-teal-200 hidden md:inline">|</span>
+            <span class="font-medium truncate max-w-32 md:max-w-none">${this.teamName}</span>
           </div>
           <div class="flex items-center gap-3">
             <span id="cp-poll-indicator" class="text-xs text-teal-200">● 5초마다 새로고침</span>
@@ -52,17 +54,18 @@ const ChatPage = {
 
         <div id="cp-msgs" class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50"></div>
 
-        <div class="border-t bg-white p-3 flex-shrink-0">
-          <div class="flex gap-2">
-            <div class="flex-1 relative">
-              <textarea id="cp-input" placeholder="👋 첫 메시지를 입력해보세요…" rows="1"
-                     class="w-full border rounded-xl px-4 py-2 pr-16 focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none text-sm"
-                     oninput="ChatPage._onInput(this)"
-                     onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();ChatPage._send()}"></textarea>
-              <span id="cp-counter" class="absolute bottom-2 right-3 text-xs text-gray-300">0/1000</span>
-            </div>
+        <div class="border-t bg-white flex-shrink-0">
+          <div class="flex gap-2 p-3">
+            <textarea id="cp-input" placeholder="👋 첫 메시지를 입력해보세요…" rows="1"
+                   class="flex-1 border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none text-sm"
+                   oninput="ChatPage._onInput(this)"
+                   onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();ChatPage._send()}"></textarea>
             <button id="cp-send-btn" onclick="ChatPage._send()"
                     class="bg-teal-600 text-white px-4 py-2 rounded-xl hover:bg-teal-700 text-sm self-end">전송</button>
+          </div>
+          <div id="cp-counter-bar" class="hidden px-4 pb-2 text-xs flex justify-between items-center">
+            <span id="cp-counter-text"></span>
+            <span id="cp-counter-over" class="hidden text-red-500 font-medium"></span>
           </div>
         </div>
       </div>`;
@@ -98,12 +101,22 @@ const ChatPage = {
 
   _onInput(el) {
     const len = el.value.length;
-    const counter = document.getElementById('cp-counter');
-    if (counter) {
-      counter.textContent = `${len}/1000`;
-      counter.className = `absolute bottom-2 right-3 text-xs ${len > 1000 ? 'text-red-500 font-medium' : 'text-gray-300'}`;
-    }
+    const bar = document.getElementById('cp-counter-bar');
+    const text = document.getElementById('cp-counter-text');
+    const over = document.getElementById('cp-counter-over');
     const btn = document.getElementById('cp-send-btn');
+
+    if (len < 900) {
+      if (bar) bar.classList.add('hidden');
+    } else if (len <= 1000) {
+      if (bar) { bar.classList.remove('hidden'); bar.className = 'px-4 pb-2 text-xs flex justify-between items-center text-yellow-600'; }
+      if (text) text.textContent = `${len} / 1,000`;
+      if (over) over.classList.add('hidden');
+    } else {
+      if (bar) { bar.classList.remove('hidden'); bar.className = 'px-4 pb-2 text-xs flex justify-between items-center text-red-600 bg-red-50'; }
+      if (text) text.textContent = `${len} / 1,000`;
+      if (over) { over.textContent = `${len - 1000}자 초과  전송(불가)`; over.classList.remove('hidden'); }
+    }
     if (btn) btn.disabled = len > 1000;
   },
 

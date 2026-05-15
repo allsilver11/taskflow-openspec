@@ -11,3 +11,5 @@ storyboard_text.txt
 .playwright-mcp/
 *.png
 *.jpeg
+
+.vercel

@@ -1,59 +1,64 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
-### Requirement: 태스크 생성
-팀원은 칸반 컬럼(TODO/DOING/DONE)에 태스크를 추가할 수 있다. 새 태스크의 기본 상태는 TODO다.
+### Requirement: 카드 메타정보 표시
+칸반 카드에 태스크 ID와 담당자를 표시한다.
 
-#### Scenario: 정상 태스크 생성
-- **WHEN** 팀원이 POST /teams/{id}/tasks에 `{"title": "태스크명"}`을 전송하면
-- **THEN** HTTP 201과 함께 `{"id": ..., "title": "태스크명", "status": "TODO", "team_id": ..., "creator_id": ...}`를 반환한다
+#### Scenario: 카드 렌더링
+- **WHEN** 칸반 보드에 태스크 카드가 표시되면
+- **THEN** 제목 아래에 `#id · @assignee이메일(앞부분)` 형태로 표시된다
+- **THEN** assignee가 없으면 `⚠미할당` 뱃지를 표시한다
 
-#### Scenario: 제목 누락
-- **WHEN** title 없이 태스크 생성을 요청하면
-- **THEN** HTTP 422를 반환한다
+### Requirement: 컬럼 카드 수 배지
+각 컬럼 헤더에 현재 카드 수를 표시한다.
 
-### Requirement: 태스크 목록 조회
-팀원은 팀의 전체 태스크 목록을 상태별로 조회할 수 있다.
+#### Scenario: 카드 수 표시
+- **WHEN** 칸반 보드가 렌더링되면
+- **THEN** 각 컬럼 헤더가 `TODO · 3` 형태로 카드 수를 표시한다
 
-#### Scenario: 태스크 목록 반환
-- **WHEN** 팀원이 GET /teams/{id}/tasks를 요청하면
-- **THEN** HTTP 200과 함께 해당 팀의 태스크 배열을 반환한다
+### Requirement: 인라인 태스크 입력
+TODO 컬럼 `+` 클릭 시 모달 대신 인라인 입력 폼이 등장한다.
 
-#### Scenario: 빈 칸반 보드
-- **WHEN** 태스크가 없는 팀에서 목록을 조회하면
-- **THEN** HTTP 200과 함께 빈 배열 `[]`를 반환한다
+#### Scenario: 인라인 입력 등장
+- **WHEN** TODO 컬럼 헤더의 `+` 버튼을 클릭하면
+- **THEN** 카드 목록 상단에 제목 입력란과 담당자 선택 드롭다운이 인라인으로 나타난다
+- **THEN** `Enter` 키로 저장, `Esc` 키로 취소한다
 
-### Requirement: 태스크 상태 변경
-팀원은 태스크를 TODO → DOING → DONE으로 드래그하여 상태를 변경할 수 있다. 상태는 세 값 중 하나여야 한다.
+#### Scenario: 담당자 선택
+- **WHEN** 인라인 입력 폼의 담당자 드롭다운을 열면
+- **THEN** 팀원 목록이 표시되고 선택하거나 "담당자 없음"을 선택할 수 있다
 
-#### Scenario: 정상 상태 변경
-- **WHEN** 팀원이 PUT /tasks/{id}에 `{"status": "DOING"}`을 전송하면
-- **THEN** HTTP 200과 함께 업데이트된 태스크를 반환한다
+### Requirement: 드래그 중 컬럼 하이라이트
+카드를 드래그하는 동안 드롭 가능한 컬럼이 시각적으로 강조된다.
 
-#### Scenario: 유효하지 않은 상태값
-- **WHEN** TODO/DOING/DONE 이외의 값으로 상태 변경을 시도하면
-- **THEN** HTTP 422를 반환한다
+#### Scenario: 드래그 중 하이라이트
+- **WHEN** 카드를 드래그하여 다른 컬럼 위로 이동하면
+- **THEN** 해당 컬럼 배경이 강조색으로 변경되고 "⬇ 여기에 놓기" 안내가 표시된다
 
-### Requirement: 태스크 제목 수정
-팀원은 태스크의 제목을 수정할 수 있다.
+### Requirement: 카드 클릭 → 상세/수정 모달
+카드를 클릭하면 제목·상태·assignee를 수정할 수 있는 모달이 열린다.
 
-#### Scenario: 제목 수정
-- **WHEN** 팀원이 PUT /tasks/{id}에 `{"title": "새 제목"}`을 전송하면
-- **THEN** HTTP 200과 함께 업데이트된 태스크를 반환한다
+#### Scenario: 카드 상세 모달 열기
+- **WHEN** 카드를 클릭하면 (드래그 아닌 단순 클릭)
+- **THEN** 카드 ID, 제목(수정 가능), 상태 선택(TODO/DOING/DONE), 담당자 선택, 생성자, 생성시각을 표시하는 모달이 열린다
 
-### Requirement: 태스크 삭제
-팀원은 태스크를 삭제할 수 있다.
+#### Scenario: 상세 모달에서 수정
+- **WHEN** 모달에서 제목을 수정하고 저장하면
+- **THEN** `PUT /tasks/{id}` 호출 후 카드가 업데이트된다
+- **WHEN** 모달에서 상태를 변경하면
+- **THEN** `PATCH /tasks/{id}/status` 호출 후 해당 컬럼으로 카드가 이동한다
 
-#### Scenario: 정상 삭제
-- **WHEN** 팀원이 DELETE /tasks/{id}를 요청하면
-- **THEN** HTTP 204를 반환하고 해당 태스크가 목록에서 사라진다
+### Requirement: 카드 삭제 확인 다이얼로그
+카드 삭제 버튼 클릭 시 확인 다이얼로그를 표시한다.
 
-#### Scenario: 존재하지 않는 태스크 삭제
-- **WHEN** 없는 태스크 ID로 DELETE를 요청하면
-- **THEN** HTTP 404를 반환한다
+#### Scenario: 삭제 확인
+- **WHEN** 카드의 ✕ 버튼 또는 모달의 🗑 버튼을 클릭하면
+- **THEN** "이 카드를 삭제하시겠습니까? 되돌릴 수 없습니다" 확인 다이얼로그가 표시된다
+- **THEN** "삭제" 확인 시에만 `DELETE /tasks/{id}` 를 호출한다
 
-### Requirement: 드래그앤드롭 UI
-칸반 화면은 HTML5 Drag API로 태스크 카드를 컬럼 간 드래그하여 상태를 변경한다. 드래그 반응은 50ms 이내여야 한다.
+### Requirement: 빈 칸반 Empty State
+태스크가 없는 컬럼에 empty state를 표시한다.
 
-#### Scenario: 드래그로 상태 이동
-- **WHEN** 사용자가 TODO 컬럼의 태스크 카드를 DOING 컬럼에 드롭하면
-- **THEN** 카드가 DOING 컬럼으로 이동하고 PUT /tasks/{id} API가 호출되어 서버에 저장된다
+#### Scenario: 빈 컬럼 표시
+- **WHEN** 컬럼에 태스크가 없으면
+- **THEN** 📋 아이콘과 "카드 없음" 텍스트를 표시한다
+- **THEN** TODO 컬럼에는 추가로 "+ 첫 태스크 만들기" CTA를 표시한다

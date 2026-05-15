@@ -136,6 +136,8 @@ const KanbanPage = {
   async _loadMembers() {
     try {
       this.members = await apiFetch(`/teams/${this.teamId}/members`);
+      const me = Auth.getUser()?.id;
+      this.isOwner = this.members.some(m => m.id === me && m.is_owner);
       const sel = document.getElementById('kb-new-assignee');
       if (sel) {
         sel.innerHTML = '<option value="">담당자 없음</option>' +
@@ -202,8 +204,10 @@ const KanbanPage = {
              class="bg-white rounded-lg p-3 shadow-sm cursor-pointer text-sm select-none">
           <div class="flex justify-between items-start gap-1">
             <span class="break-words">${t.title}</span>
-            <button onclick="event.stopPropagation(); KanbanPage._confirmDelete(${t.id})"
-                    class="text-gray-300 hover:text-red-400 flex-shrink-0 ml-1 text-xs">✕</button>
+            ${(this.isOwner || t.creator_id === Auth.getUser()?.id)
+              ? `<button onclick="event.stopPropagation(); KanbanPage._confirmDelete(${t.id})"
+                         class="text-gray-300 hover:text-red-400 flex-shrink-0 ml-1 text-xs">✕</button>`
+              : ''}
           </div>
           <div class="flex items-center gap-2 mt-1.5">
             <span class="text-xs text-gray-400">#${t.id}</span>
@@ -326,8 +330,10 @@ const KanbanPage = {
       <div class="text-xs text-gray-400 mb-4">생성시각: ${createdAt}</div>
       <div class="flex gap-2">
         <button onclick="KanbanPage._saveDetail(${id})" class="flex-1 bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700 text-sm">저장</button>
-        <button onclick="KanbanPage._confirmDelete(${id}); document.getElementById('kb-detail-modal').classList.add('hidden')"
-                class="text-red-400 hover:text-red-600 px-3 py-2 text-sm">🗑</button>
+        ${(this.isOwner || task.creator_id === Auth.getUser()?.id)
+          ? `<button onclick="KanbanPage._confirmDelete(${id}); document.getElementById('kb-detail-modal').classList.add('hidden')"
+                     class="text-red-400 hover:text-red-600 px-3 py-2 text-sm">🗑</button>`
+          : ''}
       </div>`;
     document.getElementById('kb-detail-modal').classList.remove('hidden');
   },

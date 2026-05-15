@@ -8,12 +8,21 @@ async function apiFetch(path, options = {}) {
   if (res.status === 204) return null;
 
   const data = await res.json().catch(() => ({}));
+
+  if (res.status === 401) {
+    Auth.logout();
+    window.location.hash = '#login';
+    const e = new Error('인증이 만료되었습니다');
+    e.status = 401;
+    throw e;
+  }
+
   if (!res.ok) {
-    const detail = data.detail || data;
-    const err = new Error(detail?.msg || detail?.message || '오류가 발생했습니다');
-    err.status = res.status;
-    err.code = detail?.code;
-    throw err;
+    const detail = data.error || data.detail?.error || data.detail || data;
+    const e = new Error(detail?.message || detail?.msg || '오류가 발생했습니다');
+    e.status = res.status;
+    e.code = detail?.code;
+    throw e;
   }
   return data;
 }

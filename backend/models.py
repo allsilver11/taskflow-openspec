@@ -8,6 +8,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -17,12 +18,7 @@ class Team(Base):
     name = Column(String, nullable=False)
     invite_code = Column(String, unique=True, nullable=False)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-
-
-class TeamMember(Base):
-    __tablename__ = "team_members"
-    team_id = Column(Integer, ForeignKey("teams.id"), primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class Task(Base):
@@ -32,6 +28,8 @@ class Task(Base):
     title = Column(String, nullable=False)
     status = Column(String, default="TODO", nullable=False)
     creator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    assignee_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class Message(Base):

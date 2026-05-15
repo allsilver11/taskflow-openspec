@@ -1,0 +1,600 @@
+--- Page 5 ---
+STEP B·01 / 42
+회원가입 — 초기 / 입력 중 / 처리 중
+3가지 상태를 가로로 비교. validation은 클라이언트 + 서버 양쪽
+초기상태 입력중 처리중(loading)
+taskflow.vercel.app taskflow.vercel.app taskflow.vercel.app
+TaskFlow TaskFlow TaskFlow
+회원가입 회원가입 회원가입
+이메일입력 user@example.com user@example.com
+비밀번호(8자이상) •••••••• ••••••••
+가입하기 가입하기 처리중…
+이미계정이있으신가요? 로그인 이미계정이있으신가요? 로그인 이미계정이있으신가요? 로그인
+①email type=email 검증 · ②password 8자이상(클라이언트) · ③POST /auth/signup → 201 + JWT 받기
+TaskFlow MVP · 스토리보드v2 Slide 5 / 42 · B. 로그인
+--- Page 6 ---
+STEP B·02 / 42
+회원가입 에러 — validation 실패 케이스
+이메일 형식·이메일 중복·비밀번호 약함 —각 케이스별 에러 표시
+이메일형식오류(400) 이메일중복(409) 비밀번호약함(400)
+taskflow.vercel.app taskflow.vercel.app taskflow.vercel.app
+TaskFlow TaskFlow TaskFlow
+회원가입 회원가입 회원가입
+user@invalid taken@example.com user@example.com
+⚠올바른이메일형식이아닙니다
+•••••••• •••
+••••••••
+⚠8자이상입력해주세요
+✕ 이미가입된이메일입니다
+가입하기 가입하기
+가입하기
+이미계정이있으신가요? 로그인 이미계정이있으신가요? 로그인
+이미계정이있으신가요? 로그인
+에러 응답 표준: { error: { code: 'EMAIL_TAKEN', message: '이미 가입된 이메일입니다' } } · HTTP 4xx
+TaskFlow MVP · 스토리보드v2 Slide 6 / 42 · B. 로그인
+--- Page 7 ---
+STEP B·03 / 42
+로그인 — 정상 흐름
+이메일 + 비밀번호 → 200 + JWT (24h 유효) → localStorage 저장 → 분기
+taskflow.vercel.app
+응답 흐름
+TaskFlow
+POST /auth/login
+1
+{ email, password }
+로그인
+→ 200 OK + JWT (exp 24h)
+2
+localStorage.setItem('token', jwt)
+→ users.team_id 검사:
+user@example.com 3
+NULL → 팀선택, ELSE → 칸반
+•••••••• 응답JSON 예시
+{
+✓성공! 이동중…
+"token": "eyJhbGc...",
+"user": {
+"id": 42,
+계정이없으신가요? 회원가입
+"email": "user@example.com",
+"team_id": null
+}
+}
+TaskFlow MVP · 스토리보드v2 Slide 7 / 42 · B. 로그인
+--- Page 8 ---
+STEP B·04 / 42
+로그인 401 실패 — 자격 증명 오류
+이메일 존재 여부노출 금지. 'INVALID_CREDENTIALS' 한메시지로 통일
+taskflow.vercel.app
+보안 고려사항
+TaskFlow
+이메일존재여부노출금지
+1
+존재해도/없어도동일메시지
+로그인
+5회연속실패시60초cooldown
+2
+(Day 2 범위외—메모)
+응답시간일정하게(timing attack)
+user@example.com 3
+••• 응답JSON 예시
+HTTP 401
+✕ 이메일또는비밀번호가일치하지않습니다
+{
+"error": {
+로그인
+"code": "INVALID_CREDENTIALS",
+"message": "이메일 또는 비밀번호가
+일치하지 않습니다"
+계정이없으신가요? 회원가입
+}
+}
+TaskFlow MVP · 스토리보드v2 Slide 8 / 42 · B. 로그인
+--- Page 9 ---
+STEP B·05 / 42
+로그아웃 — stateless 흐름
+결정 #5: JWT 블랙리스트 없음. 클라이언트가 토큰 삭제, 서버는 200만 반환
+1 사용자액션 2 API 호출(선택) 3 클라이언트처리
+헤더메뉴→ '로그아웃' 클릭 POST /auth/logout localStorage.removeItem('token')
+→ →
+Authorization: Bearer {jwt} location.href = '/login'
+— → HTTP 200 {} 토큰 폐기 (서버 X)
+⚠ 결정 #5: stateless 로그아웃
+선택: JWT는stateless이므로서버에블랙리스트를유지하지않음. 클라이언트가토큰만폐기.
+근거: PDF Constraint '갱신기능은Day 2 범위외' + 단순성우선.
+트레이드오프: 토큰만료(24h) 전까지유효함을감수. 분실/탈취시강제만료불가.
+TaskFlow MVP · 스토리보드v2 Slide 9 / 42 · B. 로그인
+--- Page 10 ---
+STEP C·01 / 42
+팀 미가입 진입 — team_id = NULL
+로그인 직후 분기점. team_id가 NULL인 사용자는 이 화면을 통과해야만 칸반 가능
+taskflow.vercel.app
+분기 로직
+TaskFlow user@example.com | 로그아웃
+조건부표시—users.team_id가NULL인
+1
+사용자에게만이화면노출
+ℹ 아직팀에소속되지않았습니다. 팀을만들거나초대코드로합류하세요.
+이미팀보유시—자동redirect
+2
+→ /teams/{my_team_id} (칸반)
++ 새팀 만들기 초대코드로 합류
+URL 직접입력차단—/teams/* 에접근시
+3
+team_id 검증→ NULL이면여기로redirect
+팀이름(1–30자) ABCD-1234
+ESC/뒤로가기시—로그인화면X
+4
+형식: 대문자4 + 숫자4 (하이픈포함) 여기머무름(탈출경로: 팀가입만)
+만들기 합류
+로그아웃—가능(헤더우측)
+5
+TaskFlow MVP · 스토리보드v2 Slide 10 / 42 · C. 팀선택
+--- Page 11 ---
+STEP C·02 / 42
+팀 만들기 → 초대코드 발급
+생성자가 자동으로 owner_id가되고, 초대코드는 서버가 자동 생성
+taskflow.vercel.app
+시퀀스
+POST /teams { name: 'Frontiers' }
+1
+✓ 팀이 생성되었습니다!
+→ 서버: invite_code 자동생성
+2
+(대문자4 + '-' + 숫자4)
+→ DB: teams INSERT (owner_id=me)
+팀이름 3
+users.team_id UPDATE
+Frontiers
+응답JSON
+초대코드(멤버에게공유)
+HTTP 201 Created
+F R N T - 2 0 2 6
+📋복사
+{
+"id": 7,
+"name": "Frontiers",
+"invite_code": "FRNT-2026",
+"owner_id": 42,
+칸반시작하기 →
+"created_at": "2026-05-13T14:30:00Z"
+}
+TaskFlow MVP · 스토리보드v2 Slide 11 / 42 · C. 팀선택
+--- Page 12 ---
+STEP C·03 / 42
+초대코드 합류 — 정상 흐름
+코드 입력 → 검증 → users.team_id UPDATE → 칸반으로 redirect
+taskflow.vercel.app
+검증 시퀀스
+POST /teams/join { invite_code }
+초대코드 입력 1
+→ 코드유효성검증(형식+ 존재)
+2
+F R N T - 2 0 2 6
+→ users.team_id UPDATE = teams.id
+3
+응답에팀정보포함
+응답JSON
+✓ Frontiers 팀이확인되었습니다
+HTTP 200 OK
+{
+팀정보(미리보기)
+"team": {
+Frontiers "id": 7,
+"name": "Frontiers",
+멤버3명· 태스크12개· owner: leader@ex.com "member_count": 3
+},
+"redirect": "/teams/7"
+}
+이팀에 합류 →
+TaskFlow MVP · 스토리보드v2 Slide 12 / 42 · C. 팀선택
+--- Page 13 ---
+STEP C·04 / 42
+초대코드 에러 — 형식·존재·중복 합류
+3가지 실패 케이스 시각화. 인라인 에러 + 가이드 문구
+형식오류(400) 존재하지않음(404) 이미다른팀소속(409)
+taskflow.vercel.app taskflow.vercel.app taskflow.vercel.app
+초대코드 초대코드 초대코드
+abcd1234 XXXX-9999 FRNT-2026
+⚠ 형식이올바르지않습니다 ⚠ 해당초대코드를찾을수없습니다 ⚠ 이미다른팀에소속되어있습니다
+ℹ 대문자4 + 숫자4 (예: FRNT-2026) ℹ 팀리더에게코드를다시확인하세요 ℹ 기존팀을떠나야합류가능(범위외)
+다시입력 다시입력 다시입력
+HTTP code 일관: 400 형식 / 404 미존재 / 409 충돌 · 응답 body { error: { code, message } }
+TaskFlow MVP · 스토리보드v2 Slide 13 / 42 · C. 팀선택
+--- Page 14 ---
+STEP C·05 / 42
+팀 멤버 목록 — 사이드 패널
+owner(★)와 member 구분만. 추방·역할 변경 범위 외
+taskflow.vercel.app
+권한 모델 (결정 #6)
+TaskFlow Frontiers 팀 user@ex.com
+owner (1명, team.owner_id)
+1
+· 팀생성자자동지정
+· DELETE /tasks 가능(본인외카드도)
+팀멤버(3)
+member (N명)
+2
+leader@ex.com · 초대코드로합류한사용자
+L 2026-05-10
+★owner · 본인카드/메시지만DELETE
+user@ex.com (나)
+(칸반영역—다른슬라이드참조) U 2026-05-12 비멤버(다른팀또는미가입)
+member 3
+· GET /teams/{id}/* → 403
+· 모든쓰기API → 403
+newbie@ex.com
+N 2026-05-13
+member
+추방·역할변경—Day 2 범위외
+4
+TaskFlow MVP · 스토리보드v2 Slide 14 / 42 · C. 팀선택
+--- Page 15 ---
+STEP D·01 / 42
+칸반 정상 상태 — 3컬럼 카드 가득
+메인 작업 공간. TODO → DOING → DONE 카드 표시+ 필터 + 정렬
+taskflow.vercel.app
+TaskFlow Frontiers 팀 칸반 채팅 멤버 user@ex.com
+전체 @me 미할당 정렬: 최근생성순▼
+TODO · 3 + DOING · 2 + DONE · 2 +
+DB 마이그레이션작성 JWT 미들웨어구현 signup API + bcrypt
+#100 · @me #110 · @me #120 · @me
+초대코드만료정책 칸반드래그핸들러 팀생성+ 초대코드
+#101 · @leader #111 · @me #121 · @leader
+에러응답표준화
+#102 · @me
+①필터: 전체/ @me (내카드) / 미할당 ②정렬: 최근생성순(tasks.created_at desc) ③카드= 제목+ #id + @assignee ④+ 버튼→ 인라인입력(다음슬라이드)
+TaskFlow MVP · 스토리보드v2 Slide 15 / 42 · D. 칸반
+--- Page 16 ---
+STEP D·02 / 42
+빈 칸반 — empty state
+신규 팀생성 직후또는 모든 태스크 삭제 후. 첫 카드 추가 유도
+taskflow.vercel.app
+TaskFlow Frontiers 팀 칸반 채팅 멤버 user@ex.com
+TODO · 0 + DOING · 0 + DONE · 0 +
+📋 📋 📋
+카드없음 카드없음 카드없음
++ 첫태스크만들기 드래그로이동 드래그로이동
+ℹ empty state는신규팀+ 첫진입시+ 모든카드삭제후3가지시점에표시. TODO 컬럼에만CTA를강조해서가이드.
+TaskFlow MVP · 스토리보드v2 Slide 16 / 42 · D. 칸반
+--- Page 17 ---
+STEP D·03 / 42
+태스크 생성 — 인라인 입력
+TODO 컬럼 헤더 '+' 클릭 → 인라인 입력란 등장 → Enter로 저장
+taskflow.vercel.app
+TaskFlow Frontiers 팀 칸반 채팅 멤버 user@ex.com
+TODO · 3 → 4 ✕ DOING · 2 DONE · 2
+팀멤버페이지페이지네이션
+담당자: @me ▼
+Enter: 저장· Esc: 취소
+(생략—다른슬라이드참조) (생략—다른슬라이드참조)
+DB 마이그레이션작성
+#100 · @me
+초대코드만료정책
+#101 · @leader
+시퀀스: [+ 클릭] → [인라인 입력 등장] → [제목 + assignee 입력] → [Enter] → POST /teams/{id}/tasks → 201 Created → 카드로 변환
+TaskFlow MVP · 스토리보드v2 Slide 17 / 42 · D. 칸반
+--- Page 18 ---
+STEP D·04 / 42
+카드 드래그 중 — TODO → DOING
+드래그 시작 시카드 unfocus, 대상 컬럼 highlight, drop 시 PATCH 호출
+taskflow.vercel.app
+TaskFlow Frontiers 팀 칸반 채팅 멤버 user@ex.com
+TODO · 3 DOING · 2 + DONE · 2 +
+JWT 미들웨어구현 signup API + bcrypt
+(이동중)
+#110 · @me #120 · @me
+초대코드만료정책 팀생성+ 초대코드
+⬇ 여기에놓기
+#101 · @leader #121 · @leader
+DB 마이그레이션작성
+#100 · @me
+에러응답표준화
+#102 · @me
+Drop 시: PATCH /tasks/100/status { status: 'DOING' } → 200 OK → 카드 새 위치 확정 (시각 반응 < 50ms 목표 — 정성 검증)
+TaskFlow MVP · 스토리보드v2 Slide 18 / 42 · D. 칸반
+--- Page 19 ---
+STEP D·05 / 42
+카드 상세 / 수정 모달
+카드 클릭 → 모달 열림. 제목·상태·assignee 수정 + 메타 정보
+taskflow.vercel.app
+#110 JWT 미들웨어 구현 ✕
+상태 TODO DOING DONE 저장
+담당자 @me (user@ex.com)
+다른담당자지정
+생성자 @leader (leader@ex.com)
+🗑 삭제
+생성시각 2026-05-12 14:30
+PUT /tasks/110 { title } · PATCH /tasks/110/status { status } · DELETE /tasks/110
+TaskFlow MVP · 스토리보드v2 Slide 19 / 42 · D. 칸반
+--- Page 20 ---
+STEP D·06 / 42
+카드 삭제 — 확인 다이얼로그 + 권한
+권한 규칙: creator(생성자) 또는team owner만삭제 가능. 비권한자는 버튼숨김
+taskflow.vercel.app
+DELETE 권한 매트릭스
+역할 본인카드 타인카드 메시지
+⚠ owner ✓ ✓(오버라이드) 본인만
+member (creator) ✓ ✕ 본인만
+이 카드를삭제하시겠습니까?
+'#100 DB 마이그레이션작성' —되돌릴수없습니다 member (others) ✕ ✕ 본인만
+취소 삭제 비멤버 — — 403
+403 응답: { error: { code: 'FORBIDDEN', message: '권한이 없습니다' } }
+TaskFlow MVP · 스토리보드v2 Slide 20 / 42 · D. 칸반
+--- Page 21 ---
+STEP D·07 / 42
+비멤버 접근 — 403 Forbidden
+다른 팀의 /teams/{id} URL을 직접입력한 경우. 결정 #6의 시각화
+taskflow.vercel.app
+트리거조건
+GET /teams/{other_id}/* 직접호출
+1
+(브라우저URL 입력등)
+🚫 유효한JWT 있지만user.team_id ≠ {id}
+2
+(또는미가입상태)
+POST/PATCH/DELETE도동일하게차단
+3
+403 응답JSON
+HTTP 403 Forbidden
+이 팀에 접근할 권한이 없습니다
+{
+"error": {
+"code": "FORBIDDEN",
+당신은이팀의멤버가아닙니다.
+"message": "이 팀의 멤버가
+초대코드를받았다면팀선택화면에서입력하세요.
+아닙니다"
+}
+}
+내팀으로돌아가기
+TaskFlow MVP · 스토리보드v2 Slide 21 / 42 · D. 칸반
+--- Page 22 ---
+STEP D·08 / 42
+assignee 선택 — nullable + 필터
+결정 #4: tasks.assignee_id (nullable). 미할당 카드는 '미할당' 뱃지로 시각화
+taskflow.vercel.app
+미할당카드 표시 + 필터
+담당자 선택 리뷰PR #43 검토
+#103 · ⚠미할당
+@me (나)
+user@ex.com 필터옵션(칸반상단)
+@leader
+전체 WHERE team_id = ?
+leader@ex.com
+@newbie
+@me AND assignee_id = current_user_id
+newbie@ex.com
+미할당(null)
+미할당 AND assignee_id IS NULL
+담당자없음—누구나가져갈수있음
+결정 #4: assignee_id NULLable. '내 태스크' = WHERE assignee_id = current_user_id (creator 아님)
+TaskFlow MVP · 스토리보드v2 Slide 22 / 42 · D. 칸반
+--- Page 23 ---
+STEP E·01 / 42
+채팅 정상 — 말풍선 + 폴링
+팀단위 채팅. 5초폴링으로 since= 파라미터 사용 → 새 메시지만 가져옴
+taskflow.vercel.app
+폴링 로직
+Frontiers 팀 · 채팅 ●5초마다새로고침
+처음진입: GET .../messages
+1
+(since 없음→ 최근50개)
+리더 · 14:25
+5초후: GET .../messages?since=14:30:00
+2
+(마지막메시지시각)
+오늘DOING 컬럼비워둘수있을까요?
+응답이빈배열이면화면변화없음
+3
+나 · 14:27
+응답JSON
+JWT 미들웨어만끝내고옮길게요
+HTTP 200 OK
+신규 · 14:30
+[
+{
+초대코드는어디입력하나요?
+"id": 23,
+"user_id": 42,
+"user_email": "user@ex.com",
+메시지입력(1000자이내)… 전송 "content": "JWT 미들...",
+"created_at": "2026-05-13T14:27:00Z"
+}
+]
+TaskFlow MVP · 스토리보드v2 Slide 23 / 42 · E. 채팅
+--- Page 24 ---
+STEP E·02 / 42
+빈 채팅 — empty state
+신규 팀에 메시지가 하나도 없을때. 첫 메시지 작성 유도
+taskflow.vercel.app
+표시 조건 & 동작
+Frontiers 팀 · 채팅 ●5초마다새로고침
+조건—해당team_id의messages가
+1
+0건일때(DELETE 무관)
+GET .../messages → [] 반환
+2
+💬
+사용자메시지1건전송즉시
+3
+→ 일반채팅화면으로전환
+아직 대화가 없습니다 4
+DELETE로0건이되어도이화면재진입
+(이력은사라짐, 정책X)
+첫메시지를보내팀원과대화를시작하세요
+팀합류직후신규멤버에게도노출
+👋첫메시지를입력해보세요… 전송 5
+(페르소나'신규합류자' 첫화면)
+TaskFlow MVP · 스토리보드v2 Slide 24 / 42 · E. 채팅
+--- Page 25 ---
+STEP E·03 / 42
+메시지 1000자 초과 — 카운터 적색
+PDF Constraint: 1회당 1000자 이내. 클라이언트에서 카운터 + 서버에서 재검증
+taskflow.vercel.app
+검증 정책 (2중)
+Frontiers 팀 · 채팅 ●5초마다새로고침
+클라이언트: 입력시마다length 체크
+1
+→ 1000 초과시카운터적색+ 버튼disable
+서버: POST 요청검증→ 400 Bad Request
+2
+→ { code: 'TOO_LONG', limit: 1000 }
+(이전메시지영역—다른슬라이드참조)
+두곳에서모두검증하는이유: API 직접호출차단
+3
+400 응답JSON
+메시지입력
+HTTP 400 Bad Request
+어제미팅에서논의한칸반컬럼분리안에대해서좀더자세히정리해서공유드립니다. 우선
+{
+TODO/DOING/DONE 3컬럼은유지하되, 각컬럼내에서우선순위라벨을추가하는게어떨까싶었습니
+"error": {
+다. 다만이건Day 2 범위에포함되어있지않으니다음스프린트로미루는게좋을것같고요…
+"code": "TOO_LONG",
+"message": "메시지는 1000자 이내",
+"limit": 1000,
+"actual": 1042
+}
+}
+1,042 / 1,000 42자초과 전송(불가)
+TaskFlow MVP · 스토리보드v2 Slide 25 / 42 · E. 채팅
+--- Page 26 ---
+STEP E·04 / 42
+메시지 삭제 — 본인만 가능 (호버 메뉴)
+결정 #6: DELETE /messages/{id}는 본인 메시지만. owner도 타인 메시지 삭제 불가
+taskflow.vercel.app
+삭제 권한 (결정 #6)
+Frontiers 팀 · 채팅 ●5초마다새로고침
+본인메시지: 🗑아이콘호버시표시
+1
+클릭시즉시삭제(확인X)
+리신더규 ·· 1144::2350 나 · 14:27
+타인메시지: 아이콘자체없음
+2
+← 본인메시지 API 직접호출시403
+오초늘대코DO드IN는G 어컬디럼입비력워하둘나까요요?? 🗑 JWT 미들웨어만끝내고옮길게요
+호버시표시
+owner여도타인메시지는삭제불가
+3
+(커뮤니티신뢰모델)
+403 응답JSON
+DELETE /messages/45
+HTTP 403 Forbidden
+{
+"error": {
+"code": "NOT_OWNER",
+"message": "본인 메시지만
+메시지입력… 전송 삭제 가능"
+}
+}
+TaskFlow MVP · 스토리보드v2 Slide 26 / 42 · E. 채팅
+--- Page 27 ---
+STEP E·04 / 42
+폴링 실패 — 네트워크 끊김 표시
+5초 폴링 중 실패시 재시도 + 사용자에게 알림. 메시지 누락 0건보장
+taskflow.vercel.app
+재시도로직
+Frontiers 팀 · 채팅 ⚠연결끊김· 재시도중
+Exponential backoff: 5s → 10s → 20s
+1
+→ 40s → 60s 고정(최대값)
+리더 · 14:25
+재연결시since= 파라미터로누락메시지일괄수신
+오늘DOING 컬럼비워둘까요? 2
+복구시토스트: '연결되었습니다'
+나 · 14:27 3
+사용자입력은큐에서자동전송
+네끝내고옮길게요
+✓ Metric 보장
+---14:27부터연결끊김---
+메시지누락0건
+= POST가성공한(201) 메시지는이후모든GET에서노출.
+🔄5초후재연결시도중… (시도횟수: 3/∞)
+네트워크끊김동안since= 파라미터로재동기화시누락없이받음.
+DELETE된메시지는누락이아님(다른동작).
+오프라인—연결복구후전송됩니다 전송
+TaskFlow MVP · 스토리보드v2 Slide 27 / 42 · E. 채팅
+--- Page 28 ---
+STEP F·01 / 42
+모바일 칸반 — 컬럼 스와이프
+데스크탑 3컬럼 → 모바일 1컬럼씩 가로 스와이프. 헤더에 컬럼 인디케이터
+모바일대응
+9:41 ●●●● | 100% 9:41 ●●●● | 100% 9:41 ●●●● | 100%
+Frontiers ☰ Frontiers ☰ Frontiers ☰ 1 Breakpoint < 768px → 1컬럼모드
+TODO DOING DONE TODO DOING DONE TODO DOING DONE
+좌우스와이프로
+2
+TODO · 3 DOING · 2 DONE · 2 TODO↔DOING↔DONE
+DB 마이그레이션 JWT 미들웨어 signup API
+상단인디케이터로현재컬럼표시
+3
+#100 @me #110 @me #120 @me
+→ →
+초대코드정책 드래그핸들러 팀생성
+스와이프 스와이프
+#101 @leader #111 @me #121 @leader 카드길게누르기→ 상태변경메뉴
+4
+(드래그대신메뉴선택)
+에러표준화
+#102 @me
+동일API 사용(반응형UI만)
+5
+FAB 버튼(+) 우하단—카드추가
+6
+TaskFlow MVP · 스토리보드v2 Slide 28 / 42 · F. 모바일
+--- Page 29 ---
+STEP F·02 / 42
+모바일 채팅 — 풀스크린 + 키보드
+데스크탑 채팅 패널 → 모바일 풀스크린. 키보드 올라올 때메시지 영역 축소
+모바일채팅UX
+9:41 ●●●● | 100% 9:41 ●●●● | 100%
+키보드활성시메시지영역자동축소
+← 채팅 ← 채팅 1
+(visualViewport API 사용)
+나· 14:27
+리더· 14:25
+오늘DOING 비울까? 네옮길게요 2 전송후자동스크롤하단고정
+나· 14:27
+네옮길게요 입력포커스시폴링5초→ 2초로단축
+3
+신규· 14:30
+DB 마이그레이션은| 전송
+초대코드어디?
+꾸욱누르기→ 본인메시지면삭제메뉴
+4
+Q W E R T Y U I O P
+A S D F G H J K L
+동일API 사용:
+5
+Z X C V B N M POST /teams/{id}/messages
+GET /teams/{id}/messages?since=
+메시지… 전송
+Pull-to-refresh로강제동기화
+6
+TaskFlow MVP · 스토리보드v2 Slide 29 / 42 · F. 모바일
+--- Page 30 ---
+STEP F·03 / 42
+모바일 메뉴 — 햄버거 슬라이드
+데스크탑 헤더의 팀 정보·로그아웃 → 모바일은 햄버거 메뉴로 통합
+메뉴 항목↔ 데스크탑 매핑
+9:41 ●●●● | 100% 9:41 ●●●● | 100%
+☰ user@ex.com 📋칸반 ↔ 헤더[칸반] 탭
+Frontiers U
+Frontiers · member
+TODO · 3 💬채팅 ↔ 헤더[채팅] 탭
+📋 칸반
+DB 마이그레이션
+#100 · @me 💬 채팅
+👥팀멤버 ↔ 사이드패널
+초대코드정책
+👥 팀멤버
+#101 · @me
+🚪로그아웃 ↔ 헤더우측이메일→ 로그아웃
+에러표준화
+#102 · @me
+🚪 로그아웃
+ℹ Breakpoint
+< 768px: 햄버거+ 풀스크린 · 768~1024px: 헤더통합 · > 1024px: 사이드패널
+닫힘(기본) 열림(☰탭)
+TaskFlow MVP · 스토리보드v2 Slide 30 / 42 · F. 모바일

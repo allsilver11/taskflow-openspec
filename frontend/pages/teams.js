@@ -27,7 +27,10 @@ const TeamsPage = {
             <div class="flex justify-between items-center">
               <div>
                 <div class="font-semibold text-gray-800">${t.name}</div>
-                <div class="text-xs text-gray-400 mt-0.5">초대코드: <span class="font-mono">${t.invite_code}</span></div>
+                <div class="text-xs text-gray-400 mt-0.5">초대코드: <span class="font-mono font-bold text-gray-600">${t.invite_code}</span>
+                  <button onclick="TeamsPage._copyCode('${t.invite_code}')" id="tp-copy-btn"
+                          class="ml-2 text-teal-500 hover:text-teal-700 text-xs">📋 복사</button>
+                </div>
               </div>
               <div class="flex gap-2 items-center">
                 <button onclick="TeamsPage._leave(${t.id})" class="text-xs text-red-400 hover:text-red-600">떠나기</button>
@@ -60,10 +63,61 @@ const TeamsPage = {
     } catch (e) { if (e.status !== 401) this._showError(e.message); }
   },
 
+  async _copyCode(code) {
+    const btn = document.getElementById('tp-copy-btn');
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(code);
+      } else {
+        const el = document.createElement('textarea');
+        el.value = code;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+      }
+      if (btn) { btn.textContent = '✓ 복사됨'; setTimeout(() => { btn.textContent = '📋 복사'; }, 2000); }
+    } catch (e) { console.error(e); }
+  },
+
   _select(id, name) {
     localStorage.setItem('currentTeamId', id);
     localStorage.setItem('currentTeamName', name);
     navigate('#kanban');
+  },
+
+  _showInviteCode(team) {
+    const formsEl = document.getElementById('tp-forms');
+    formsEl.innerHTML = `
+      <div class="bg-white rounded-xl shadow p-6 text-center">
+        <p class="text-green-600 font-semibold mb-4">✓ 팀이 생성되었습니다!</p>
+        <p class="text-sm text-gray-500 mb-2">초대코드 (멤버에게 공유)</p>
+        <div class="flex items-center justify-center gap-3 mb-4">
+          <span class="font-mono text-2xl font-bold tracking-widest text-teal-700">${team.invite_code}</span>
+          <button onclick="TeamsPage._copyCode('${team.invite_code}')" id="tp-copy-btn"
+                  class="text-teal-500 hover:text-teal-700 text-sm border border-teal-300 rounded px-2 py-1">📋 복사</button>
+        </div>
+        <button onclick="TeamsPage._select(${team.id},'${team.name.replace(/'/g, "\\'")}')"
+                class="w-full bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700 font-medium">
+          칸반 시작하기 →
+        </button>
+      </div>`;
+  },
+
+  _showJoinPreview(team) {
+    const formsEl = document.getElementById('tp-forms');
+    formsEl.innerHTML = `
+      <div class="bg-white rounded-xl shadow p-6 text-center">
+        <p class="text-green-600 font-semibold mb-3">✓ ${team.name} 팀이 확인되었습니다!</p>
+        <div class="bg-gray-50 rounded-lg p-3 mb-4 text-sm text-gray-600">
+          <div class="font-semibold text-gray-800 text-base">${team.name}</div>
+          ${team.member_count ? `<div class="text-xs text-gray-400 mt-1">멤버 ${team.member_count}명</div>` : ''}
+        </div>
+        <button onclick="TeamsPage._select(${team.id},'${team.name.replace(/'/g, "\\'")}')"
+                class="w-full bg-orange-500 text-white py-2 rounded-lg hover:bg-orange-600 font-medium">
+          이 팀에 합류 →
+        </button>
+      </div>`;
   },
 
   async _createTeam() {
@@ -71,7 +125,9 @@ const TeamsPage = {
     if (!name) return;
     try {
       const team = await apiFetch('/teams', { method: 'POST', body: JSON.stringify({ name }) });
-      this._select(team.id, team.name);
+      const listEl = document.getElementById('tp-list');
+      listEl.innerHTML = '';
+      this._showInviteCode(team);
     } catch (e) { if (e.status !== 401) this._showError(e.message); }
   },
 
@@ -80,7 +136,9 @@ const TeamsPage = {
     if (!code) return;
     try {
       const team = await apiFetch('/teams/join', { method: 'POST', body: JSON.stringify({ invite_code: code }) });
-      this._select(team.id, team.name);
+      const listEl = document.getElementById('tp-list');
+      listEl.innerHTML = '';
+      this._showJoinPreview(team);
     } catch (e) { if (e.status !== 401) this._showError(e.message); }
   },
 

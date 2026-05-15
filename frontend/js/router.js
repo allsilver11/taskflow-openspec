@@ -3,6 +3,7 @@ const ROUTES = {
   '#teams': () => TeamsPage.render(),
   '#kanban': () => KanbanPage.render(),
   '#chat': () => ChatPage.render(),
+  '#members': () => MembersPage.render(),
 };
 
 function navigate(hash) {

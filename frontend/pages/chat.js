@@ -2,11 +2,16 @@ const ChatPage = {
   teamId: null,
   teamName: null,
   lastMsgTime: null,
+  _pollDelay: 5000,
+  _pollTimer: null,
+  _pollFailed: false,
 
   render() {
     this.teamId = localStorage.getItem('currentTeamId');
     this.teamName = localStorage.getItem('currentTeamName');
     if (!this.teamId) { navigate('#teams'); return; }
+    this._pollDelay = 5000;
+    this._pollFailed = false;
 
     document.getElementById('app').innerHTML = `
       <div class="flex flex-col" style="height:100vh">
@@ -16,11 +21,14 @@ const ChatPage = {
             <button id="cp-hamburger" class="md:hidden p-1">☰</button>
             <span class="font-bold truncate max-w-32 md:max-w-none">${this.teamName}</span>
           </div>
-          <nav class="hidden md:flex items-center gap-1">
-            <button onclick="navigate('#kanban')" class="px-3 py-1 rounded text-teal-100 hover:bg-teal-500 text-sm">칸반</button>
-            <button onclick="navigate('#chat')" class="px-3 py-1 rounded bg-teal-500 text-white text-sm font-medium">채팅</button>
-            <span class="text-teal-200 text-sm ml-2">${Auth.getUser()?.email || ''}</span>
-          </nav>
+          <div class="flex items-center gap-3">
+            <span id="cp-poll-indicator" class="text-xs text-teal-200">● 5초마다 새로고침</span>
+            <nav class="hidden md:flex items-center gap-1">
+              <button onclick="navigate('#kanban')" class="px-3 py-1 rounded text-teal-100 hover:bg-teal-500 text-sm">칸반</button>
+              <button onclick="navigate('#chat')" class="px-3 py-1 rounded bg-teal-500 text-white text-sm font-medium">채팅</button>
+              <button onclick="navigate('#members')" class="px-3 py-1 rounded text-teal-100 hover:bg-teal-500 text-sm">멤버</button>
+            </nav>
+          </div>
         </header>
 
         <!-- Mobile menu -->
@@ -33,8 +41,10 @@ const ChatPage = {
                     class="flex items-center gap-2 w-full py-2 text-gray-700">📋 칸반</button>
             <button onclick="navigate('#chat'); document.getElementById('cp-mobile-menu').classList.add('hidden')"
                     class="flex items-center gap-2 w-full py-2 text-teal-600 font-medium">💬 채팅</button>
+            <button onclick="navigate('#members'); document.getElementById('cp-mobile-menu').classList.add('hidden')"
+                    class="flex items-center gap-2 w-full py-2 text-gray-700">👥 멤버</button>
             <button onclick="navigate('#teams'); document.getElementById('cp-mobile-menu').classList.add('hidden')"
-                    class="flex items-center gap-2 w-full py-2 text-gray-700">👥 팀 목록</button>
+                    class="flex items-center gap-2 w-full py-2 text-gray-700">← 팀 목록</button>
             <hr>
             <button onclick="Auth.logout(); navigate('#login')" class="flex items-center gap-2 w-full py-2 text-red-500">🚪 로그아웃</button>
           </div>
@@ -45,42 +55,66 @@ const ChatPage = {
         <div class="border-t bg-white p-3 flex-shrink-0">
           <div class="flex gap-2">
             <div class="flex-1 relative">
-              <textarea id="cp-input" placeholder="메시지 입력 (1000자 이내)..." rows="1"
+              <textarea id="cp-input" placeholder="👋 첫 메시지를 입력해보세요…" rows="1"
                      class="w-full border rounded-xl px-4 py-2 pr-16 focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none text-sm"
                      oninput="ChatPage._onInput(this)"
                      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();ChatPage._send()}"></textarea>
               <span id="cp-counter" class="absolute bottom-2 right-3 text-xs text-gray-300">0/1000</span>
             </div>
-            <button onclick="ChatPage._send()"
+            <button id="cp-send-btn" onclick="ChatPage._send()"
                     class="bg-teal-600 text-white px-4 py-2 rounded-xl hover:bg-teal-700 text-sm self-end">전송</button>
           </div>
         </div>
       </div>`;
 
-    document.getElementById('cp-hamburger').onclick = () => {
-      document.getElementById('cp-mobile-menu').classList.remove('hidden');
-    };
+    document.getElementById('cp-hamburger').onclick = () => document.getElementById('cp-mobile-menu').classList.remove('hidden');
+
+    // Focus → poll faster
+    document.getElementById('cp-input').onfocus = () => { this._pollDelay = 2000; };
+    document.getElementById('cp-input').onblur = () => { this._pollDelay = 5000; };
 
     this.lastMsgTime = null;
     this._load();
-    window._pollingInterval = setInterval(() => this._poll(), 5000);
+    this._schedulePoll();
+  },
+
+  _schedulePoll() {
+    if (this._pollTimer) clearTimeout(this._pollTimer);
+    this._pollTimer = setTimeout(() => this._poll(), this._pollDelay);
+    window._pollingInterval = this._pollTimer;
+  },
+
+  _setIndicator(ok) {
+    const el = document.getElementById('cp-poll-indicator');
+    if (!el) return;
+    if (ok) {
+      el.textContent = '● 5초마다 새로고침';
+      el.className = 'text-xs text-teal-200';
+    } else {
+      el.textContent = '⚠ 연결 끊김 · 재시도 중';
+      el.className = 'text-xs text-yellow-300';
+    }
   },
 
   _onInput(el) {
     const len = el.value.length;
     const counter = document.getElementById('cp-counter');
-    if (!counter) return;
-    counter.textContent = `${len}/1000`;
-    counter.className = `absolute bottom-2 right-3 text-xs ${len > 1000 ? 'text-red-500 font-medium' : 'text-gray-300'}`;
-    const btn = el.closest('div').nextElementSibling;
+    if (counter) {
+      counter.textContent = `${len}/1000`;
+      counter.className = `absolute bottom-2 right-3 text-xs ${len > 1000 ? 'text-red-500 font-medium' : 'text-gray-300'}`;
+    }
+    const btn = document.getElementById('cp-send-btn');
     if (btn) btn.disabled = len > 1000;
   },
 
   async _load() {
     try {
       const msgs = await apiFetch(`/teams/${this.teamId}/messages`);
-      this._render(msgs, false);
+      this._renderMsgs(msgs, false);
       if (msgs.length) this.lastMsgTime = msgs[msgs.length - 1].created_at;
+      this._setIndicator(true);
+      this._pollFailed = false;
+      this._pollDelay = 5000;
     } catch (e) { if (e.status !== 401) console.error(e.message); }
   },
 
@@ -92,15 +126,42 @@ const ChatPage = {
         : `/teams/${this.teamId}/messages`;
       const msgs = await apiFetch(url);
       if (msgs.length) {
-        this._render(msgs, true);
+        this._renderMsgs(msgs, true);
         this.lastMsgTime = msgs[msgs.length - 1].created_at;
       }
-    } catch (e) { if (e.status !== 401) console.error(e.message); }
+      this._setIndicator(true);
+      this._pollFailed = false;
+      this._pollDelay = document.getElementById('cp-input') === document.activeElement ? 2000 : 5000;
+    } catch (e) {
+      if (e.status === 401) return;
+      this._pollFailed = true;
+      this._setIndicator(false);
+      this._pollDelay = Math.min(this._pollDelay * 2, 60000);
+    }
+    this._schedulePoll();
   },
 
-  _render(msgs, append) {
+  _renderMsgs(msgs, append) {
     const el = document.getElementById('cp-msgs');
     if (!el) return;
+
+    if (!append && msgs.length === 0) {
+      el.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-full text-center py-16">
+          <div class="text-5xl mb-4">💬</div>
+          <p class="text-gray-500 font-medium mb-1">아직 대화가 없습니다</p>
+          <p class="text-gray-400 text-sm">첫 메시지를 보내 팀원과 대화를 시작하세요</p>
+        </div>`;
+      const input = document.getElementById('cp-input');
+      if (input) input.placeholder = '👋 첫 메시지를 입력해보세요…';
+      return;
+    }
+
+    if (!append && msgs.length > 0) {
+      const input = document.getElementById('cp-input');
+      if (input) input.placeholder = '메시지 입력 (1000자 이내)…';
+    }
+
     const me = Auth.getUser()?.id;
     const html = msgs.map(m => {
       const mine = m.user_id === me;
@@ -111,7 +172,7 @@ const ChatPage = {
           <span class="px-4 py-2 rounded-2xl text-sm max-w-xs break-words
                        ${mine ? 'bg-teal-500 text-white' : 'bg-white text-gray-800 shadow-sm'}">${m.content}</span>
           ${mine ? `<button onclick="ChatPage._deleteMsg(${m.id})"
-                            class="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 text-xs transition-opacity">🗑</button>` : ''}
+                            class="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 text-xs transition-opacity mb-1">🗑</button>` : ''}
         </div>
       </div>`;
     }).join('');

@@ -2,7 +2,10 @@ const KanbanPage = {
   teamId: null,
   teamName: null,
   tasks: [],
+  members: [],
   filter: 'all',
+  _dragging: false,
+  _dragTimer: null,
 
   render() {
     this.teamId = localStorage.getItem('currentTeamId');
@@ -11,7 +14,6 @@ const KanbanPage = {
 
     document.getElementById('app').innerHTML = `
       <div class="flex flex-col" style="height:100vh">
-        <!-- Header -->
         <header class="bg-teal-600 text-white px-4 py-3 flex justify-between items-center flex-shrink-0">
           <div class="flex items-center gap-3">
             <button onclick="navigate('#teams')" class="text-sm opacity-80 hover:opacity-100 hidden md:inline">← 팀 목록</button>
@@ -21,6 +23,7 @@ const KanbanPage = {
           <nav class="hidden md:flex items-center gap-1">
             <button onclick="navigate('#kanban')" class="px-3 py-1 rounded bg-teal-500 text-white text-sm font-medium">칸반</button>
             <button onclick="navigate('#chat')" class="px-3 py-1 rounded text-teal-100 hover:bg-teal-500 text-sm">채팅</button>
+            <button onclick="navigate('#members')" class="px-3 py-1 rounded text-teal-100 hover:bg-teal-500 text-sm">멤버</button>
             <span class="text-teal-200 text-sm ml-2 mr-1">${Auth.getUser()?.email || ''}</span>
             <button id="kb-logout" class="text-sm text-teal-200 hover:text-white">로그아웃</button>
           </nav>
@@ -36,8 +39,10 @@ const KanbanPage = {
                     class="flex items-center gap-2 w-full py-2 text-teal-600 font-medium">📋 칸반</button>
             <button onclick="navigate('#chat'); document.getElementById('kb-mobile-menu').classList.add('hidden')"
                     class="flex items-center gap-2 w-full py-2 text-gray-700">💬 채팅</button>
+            <button onclick="navigate('#members'); document.getElementById('kb-mobile-menu').classList.add('hidden')"
+                    class="flex items-center gap-2 w-full py-2 text-gray-700">👥 멤버</button>
             <button onclick="navigate('#teams'); document.getElementById('kb-mobile-menu').classList.add('hidden')"
-                    class="flex items-center gap-2 w-full py-2 text-gray-700">👥 팀 목록</button>
+                    class="flex items-center gap-2 w-full py-2 text-gray-700">← 팀 목록</button>
             <hr>
             <button id="kb-logout-mobile" class="flex items-center gap-2 w-full py-2 text-red-500">🚪 로그아웃</button>
           </div>
@@ -52,23 +57,24 @@ const KanbanPage = {
           ).join('')}
         </div>
 
-        <!-- Kanban columns (desktop: 3col, mobile: swipe 1col) -->
+        <!-- Kanban columns -->
         <div class="flex-1 overflow-hidden">
           <!-- Desktop -->
           <div class="hidden md:flex gap-4 h-full p-4 overflow-auto">
             ${['TODO','DOING','DONE'].map(col => `
               <div class="flex-1 flex flex-col min-w-0">
                 <div class="flex justify-between items-center mb-2 px-1">
-                  <h2 class="font-bold text-gray-600 text-sm tracking-wide">${col}</h2>
-                  ${col==='TODO' ? `<button onclick="KanbanPage._showAdd()" class="text-teal-600 text-xl font-light leading-none hover:text-teal-800">+</button>` : ''}
+                  <h2 id="col-title-${col}" class="font-bold text-gray-600 text-sm tracking-wide">${col} · 0</h2>
+                  ${col==='TODO' ? `<button onclick="KanbanPage._showInlineAdd()" class="text-teal-600 text-xl font-light leading-none hover:text-teal-800">+</button>` : ''}
                 </div>
-                <div id="col-${col}" class="flex-1 bg-gray-100 rounded-xl p-2 space-y-2 min-h-24"
-                     ondragover="event.preventDefault()"
+                <div id="col-${col}" class="flex-1 bg-gray-100 rounded-xl p-2 space-y-2 min-h-24 transition-colors"
+                     ondragover="KanbanPage._onDragOver(event,'${col}')"
+                     ondragleave="KanbanPage._onDragLeave(event,'${col}')"
                      ondrop="KanbanPage._drop(event,'${col}')"></div>
               </div>`).join('')}
           </div>
 
-          <!-- Mobile: swipe columns -->
+          <!-- Mobile -->
           <div class="md:hidden flex flex-col h-full">
             <div class="flex border-b bg-white flex-shrink-0">
               ${['TODO','DOING','DONE'].map((col,i) =>
@@ -77,55 +83,88 @@ const KanbanPage = {
               ).join('')}
             </div>
             <div class="flex-1 overflow-y-auto p-3 space-y-2" id="mob-col-content"></div>
-            <!-- FAB -->
-            <button onclick="KanbanPage._showAdd()"
+            <button onclick="KanbanPage._showInlineAdd()"
                     class="fixed bottom-6 right-6 w-14 h-14 bg-teal-600 text-white rounded-full shadow-lg text-2xl flex items-center justify-center hover:bg-teal-700 z-10">+</button>
           </div>
         </div>
       </div>
 
-      <!-- Add Task Modal -->
-      <div id="kb-add-modal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-20 px-4">
-        <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
-          <h3 class="font-semibold mb-3">태스크 추가</h3>
+      <!-- Inline add form (hidden initially) -->
+      <div id="kb-inline-form" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-20 px-4">
+        <div class="bg-white rounded-xl p-5 w-full max-w-sm shadow-xl">
+          <h3 class="font-semibold mb-3 text-gray-700">태스크 추가</h3>
           <input id="kb-new-title" type="text" placeholder="태스크 이름"
                  class="w-full border rounded-lg px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-teal-400"
-                 onkeydown="if(event.key==='Enter') KanbanPage._addTask()">
+                 onkeydown="if(event.key==='Enter') KanbanPage._addTask(); if(event.key==='Escape') KanbanPage._hideInlineAdd()">
+          <select id="kb-new-assignee" class="w-full border rounded-lg px-3 py-2 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
+            <option value="">담당자 없음</option>
+          </select>
           <div class="flex gap-2">
             <button onclick="KanbanPage._addTask()" class="flex-1 bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700">추가</button>
-            <button onclick="KanbanPage._hideAdd()" class="flex-1 border py-2 rounded-lg hover:bg-gray-50">취소</button>
+            <button onclick="KanbanPage._hideInlineAdd()" class="flex-1 border py-2 rounded-lg hover:bg-gray-50">취소</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card detail modal -->
+      <div id="kb-detail-modal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-20 px-4">
+        <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl" id="kb-detail-content"></div>
+      </div>
+
+      <!-- Delete confirm dialog -->
+      <div id="kb-delete-confirm" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-30 px-4">
+        <div class="bg-white rounded-xl p-6 w-full max-w-xs shadow-xl text-center">
+          <p class="font-semibold mb-1 text-gray-800">이 카드를 삭제하시겠습니까?</p>
+          <p class="text-xs text-gray-400 mb-5">되돌릴 수 없습니다</p>
+          <div class="flex gap-2">
+            <button onclick="document.getElementById('kb-delete-confirm').classList.add('hidden')"
+                    class="flex-1 border py-2 rounded-lg hover:bg-gray-50 text-sm">취소</button>
+            <button id="kb-delete-ok" class="flex-1 bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 text-sm">삭제</button>
           </div>
         </div>
       </div>`;
 
     document.getElementById('kb-logout').onclick = () => { Auth.logout(); navigate('#login'); };
     document.getElementById('kb-logout-mobile').onclick = () => { Auth.logout(); navigate('#login'); };
-    document.getElementById('kb-hamburger').onclick = () => {
-      document.getElementById('kb-mobile-menu').classList.remove('hidden');
-    };
+    document.getElementById('kb-hamburger').onclick = () => document.getElementById('kb-mobile-menu').classList.remove('hidden');
 
     this._mobileColIndex = 0;
+    this._loadMembers();
     this._loadTasks();
+  },
+
+  async _loadMembers() {
+    try {
+      this.members = await apiFetch(`/teams/${this.teamId}/members`);
+      const sel = document.getElementById('kb-new-assignee');
+      if (sel) {
+        sel.innerHTML = '<option value="">담당자 없음</option>' +
+          this.members.map(m => `<option value="${m.id}">${m.email}</option>`).join('');
+      }
+    } catch (e) { if (e.status !== 401) console.error(e.message); }
   },
 
   _setFilter(f) {
     this.filter = f;
     ['all','me','unassigned'].forEach(v => {
       const btn = document.getElementById(`filter-${v}`);
-      if (!btn) return;
-      btn.className = `px-3 py-1 rounded-full text-xs flex-shrink-0 ${v===f ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`;
+      if (btn) btn.className = `px-3 py-1 rounded-full text-xs flex-shrink-0 ${v===f ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`;
     });
     this._loadTasks();
   },
 
   async _loadTasks() {
     try {
-      const url = this.filter === 'all'
-        ? `/teams/${this.teamId}/tasks`
-        : `/teams/${this.teamId}/tasks?filter=${this.filter}`;
+      const url = this.filter === 'all' ? `/teams/${this.teamId}/tasks` : `/teams/${this.teamId}/tasks?filter=${this.filter}`;
       this.tasks = await apiFetch(url);
       this._renderTasks();
     } catch (e) { if (e.status !== 401) console.error(e.message); }
+  },
+
+  _getAssigneeEmail(assignee_id) {
+    if (!assignee_id) return null;
+    const m = this.members.find(m => m.id === assignee_id);
+    return m ? m.email.split('@')[0] : `#${assignee_id}`;
   },
 
   _renderTasks() {
@@ -135,24 +174,43 @@ const KanbanPage = {
     } else {
       ['TODO','DOING','DONE'].forEach(col => {
         const el = document.getElementById(`col-${col}`);
+        const titleEl = document.getElementById(`col-title-${col}`);
         if (!el) return;
-        el.innerHTML = this._colHTML(col);
+        const items = this.tasks.filter(t => t.status === col);
+        if (titleEl) titleEl.textContent = `${col} · ${items.length}`;
+        el.innerHTML = this._colHTML(col, items);
       });
     }
   },
 
-  _colHTML(col) {
-    const items = this.tasks.filter(t => t.status === col);
-    if (!items.length) return `<p class="text-xs text-gray-300 text-center pt-6">없음</p>`;
-    return items.map(t => `
-      <div draggable="true" ondragstart="KanbanPage._dragStart(event,${t.id})"
-           class="bg-white rounded-lg p-3 shadow-sm cursor-grab active:cursor-grabbing text-sm">
-        <div class="flex justify-between items-start gap-1">
-          <span class="break-words">${t.title}</span>
-          <button onclick="KanbanPage._delete(${t.id})" class="text-gray-300 hover:text-red-400 flex-shrink-0 ml-1 text-xs">✕</button>
-        </div>
-        ${t.assignee_id ? `<div class="text-xs text-teal-500 mt-1">@담당자#${t.assignee_id}</div>` : ''}
-      </div>`).join('');
+  _colHTML(col, items) {
+    if (!items.length) {
+      return col === 'TODO'
+        ? `<div class="text-center py-6">
+            <div class="text-3xl mb-2">📋</div>
+            <p class="text-xs text-gray-400 mb-3">카드 없음</p>
+            <button onclick="KanbanPage._showInlineAdd()" class="text-xs text-teal-600 border border-teal-300 rounded-full px-3 py-1 hover:bg-teal-50">+ 첫 태스크 만들기</button>
+          </div>`
+        : `<div class="text-center py-6"><div class="text-3xl mb-2">📋</div><p class="text-xs text-gray-400">카드 없음</p></div>`;
+    }
+    return items.map(t => {
+      const assigneeLabel = t.assignee_id ? `@${this._getAssigneeEmail(t.assignee_id)}` : null;
+      return `
+        <div draggable="true"
+             ondragstart="KanbanPage._dragStart(event,${t.id})"
+             onclick="KanbanPage._openDetail(${t.id})"
+             class="bg-white rounded-lg p-3 shadow-sm cursor-pointer text-sm select-none">
+          <div class="flex justify-between items-start gap-1">
+            <span class="break-words">${t.title}</span>
+            <button onclick="event.stopPropagation(); KanbanPage._confirmDelete(${t.id})"
+                    class="text-gray-300 hover:text-red-400 flex-shrink-0 ml-1 text-xs">✕</button>
+          </div>
+          <div class="flex items-center gap-2 mt-1.5">
+            <span class="text-xs text-gray-400">#${t.id}</span>
+            ${assigneeLabel ? `<span class="text-xs text-teal-500">${assigneeLabel}</span>` : `<span class="text-xs text-amber-400">⚠미할당</span>`}
+          </div>
+        </div>`;
+    }).join('');
   },
 
   _showMobileCol(idx) {
@@ -168,16 +226,144 @@ const KanbanPage = {
     const col = ['TODO','DOING','DONE'][idx];
     const el = document.getElementById('mob-col-content');
     if (!el) return;
-    el.innerHTML = this._colHTML(col);
-    el.querySelectorAll('[draggable]').forEach(card => {
-      card.removeAttribute('draggable');
-      card.style.cursor = 'pointer';
-      const taskId = parseInt(card.querySelector('button').getAttribute('onclick').match(/\d+/)[0]);
-      card.addEventListener('click', e => {
-        if (e.target.tagName === 'BUTTON') return;
-        this._showStatusMenu(taskId, col);
+    const items = this.tasks.filter(t => t.status === col);
+    el.innerHTML = this._colHTML(col, items);
+  },
+
+  _dragStart(e, id) {
+    this._dragging = true;
+    e.dataTransfer.setData('taskId', id);
+  },
+
+  _onDragOver(e, col) {
+    e.preventDefault();
+    const el = document.getElementById(`col-${col}`);
+    if (el) el.classList.add('bg-teal-50', 'ring-2', 'ring-teal-300');
+  },
+
+  _onDragLeave(e, col) {
+    const el = document.getElementById(`col-${col}`);
+    if (el) el.classList.remove('bg-teal-50', 'ring-2', 'ring-teal-300');
+  },
+
+  async _drop(e, status) {
+    this._dragging = false;
+    const el = document.getElementById(`col-${status}`);
+    if (el) el.classList.remove('bg-teal-50', 'ring-2', 'ring-teal-300');
+    const id = parseInt(e.dataTransfer.getData('taskId'));
+    await this._patchStatus(id, status);
+    setTimeout(() => { this._dragging = false; }, 100);
+  },
+
+  async _patchStatus(id, status) {
+    const task = this.tasks.find(t => t.id === id);
+    if (!task || task.status === status) return;
+    try {
+      const updated = await apiFetch(`/tasks/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+      task.status = updated.status;
+      this._renderTasks();
+    } catch (e) { if (e.status !== 401) console.error(e.message); }
+  },
+
+  _showInlineAdd() {
+    document.getElementById('kb-inline-form').classList.remove('hidden');
+    document.getElementById('kb-new-title').focus();
+    const sel = document.getElementById('kb-new-assignee');
+    if (sel && this.members.length) {
+      sel.innerHTML = '<option value="">담당자 없음</option>' +
+        this.members.map(m => `<option value="${m.id}">${m.email}</option>`).join('');
+    }
+  },
+
+  _hideInlineAdd() {
+    document.getElementById('kb-inline-form').classList.add('hidden');
+    document.getElementById('kb-new-title').value = '';
+    const sel = document.getElementById('kb-new-assignee');
+    if (sel) sel.value = '';
+  },
+
+  async _addTask() {
+    const title = document.getElementById('kb-new-title').value.trim();
+    if (!title) return;
+    const assignee_id = document.getElementById('kb-new-assignee')?.value || null;
+    try {
+      const task = await apiFetch(`/teams/${this.teamId}/tasks`, {
+        method: 'POST',
+        body: JSON.stringify({ title, assignee_id: assignee_id ? parseInt(assignee_id) : null }),
       });
-    });
+      this.tasks.unshift(task);
+      this._renderTasks();
+      this._hideInlineAdd();
+    } catch (e) { if (e.status !== 401) console.error(e.message); }
+  },
+
+  _openDetail(id) {
+    if (this._dragging) return;
+    const task = this.tasks.find(t => t.id === id);
+    if (!task) return;
+    const assigneeEmail = task.assignee_id ? (this.members.find(m => m.id === task.assignee_id)?.email || '') : '';
+    const createdAt = task.created_at ? new Date(task.created_at).toLocaleString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+    const memberOptions = '<option value="">담당자 없음</option>' +
+      this.members.map(m => `<option value="${m.id}" ${m.id === task.assignee_id ? 'selected' : ''}>${m.email}</option>`).join('');
+
+    document.getElementById('kb-detail-content').innerHTML = `
+      <div class="flex justify-between items-center mb-4">
+        <span class="text-xs text-gray-400">#${task.id}</span>
+        <button onclick="document.getElementById('kb-detail-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+      </div>
+      <input id="detail-title" type="text" value="${task.title.replace(/"/g, '&quot;')}"
+             class="w-full border rounded-lg px-3 py-2 mb-4 font-medium focus:outline-none focus:ring-2 focus:ring-teal-400">
+      <p class="text-xs text-gray-500 mb-2">상태</p>
+      <div class="flex gap-2 mb-4">
+        ${['TODO','DOING','DONE'].map(s => `
+          <button onclick="KanbanPage._detailPatchStatus(${id},'${s}')"
+                  class="flex-1 py-1.5 rounded text-xs font-medium border ${task.status===s ? 'bg-teal-600 text-white border-teal-600' : 'text-gray-600 hover:bg-gray-50'}">${s}</button>`).join('')}
+      </div>
+      <p class="text-xs text-gray-500 mb-2">담당자</p>
+      <select id="detail-assignee" class="w-full border rounded-lg px-3 py-2 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
+        ${memberOptions}
+      </select>
+      <div class="text-xs text-gray-400 mb-4">생성시각: ${createdAt}</div>
+      <div class="flex gap-2">
+        <button onclick="KanbanPage._saveDetail(${id})" class="flex-1 bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700 text-sm">저장</button>
+        <button onclick="KanbanPage._confirmDelete(${id}); document.getElementById('kb-detail-modal').classList.add('hidden')"
+                class="text-red-400 hover:text-red-600 px-3 py-2 text-sm">🗑</button>
+      </div>`;
+    document.getElementById('kb-detail-modal').classList.remove('hidden');
+  },
+
+  async _detailPatchStatus(id, status) {
+    await this._patchStatus(id, status);
+    this._openDetail(id);
+  },
+
+  async _saveDetail(id) {
+    const title = document.getElementById('detail-title').value.trim();
+    const assignee_id = document.getElementById('detail-assignee').value;
+    if (!title) return;
+    try {
+      const updated = await apiFetch(`/tasks/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ title, assignee_id: assignee_id ? parseInt(assignee_id) : null }),
+      });
+      const task = this.tasks.find(t => t.id === id);
+      if (task) { task.title = updated.title; task.assignee_id = updated.assignee_id; }
+      this._renderTasks();
+      document.getElementById('kb-detail-modal').classList.add('hidden');
+    } catch (e) { if (e.status !== 401) console.error(e.message); }
+  },
+
+  _confirmDelete(id) {
+    const modal = document.getElementById('kb-delete-confirm');
+    modal.classList.remove('hidden');
+    document.getElementById('kb-delete-ok').onclick = async () => {
+      modal.classList.add('hidden');
+      try {
+        await apiFetch(`/tasks/${id}`, { method: 'DELETE' });
+        this.tasks = this.tasks.filter(t => t.id !== id);
+        this._renderTasks();
+      } catch (e) { if (e.status !== 401) console.error(e.message); }
+    };
   },
 
   _showStatusMenu(taskId, currentStatus) {
@@ -194,50 +380,5 @@ const KanbanPage = {
         </div>
       </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
-  },
-
-  _dragStart(e, id) { e.dataTransfer.setData('taskId', id); },
-
-  async _drop(e, status) {
-    const id = parseInt(e.dataTransfer.getData('taskId'));
-    await this._patchStatus(id, status);
-  },
-
-  async _patchStatus(id, status) {
-    const task = this.tasks.find(t => t.id === id);
-    if (!task || task.status === status) return;
-    try {
-      const updated = await apiFetch(`/tasks/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
-      task.status = updated.status;
-      this._renderTasks();
-    } catch (e) { if (e.status !== 401) console.error(e.message); }
-  },
-
-  _showAdd() {
-    document.getElementById('kb-add-modal').classList.remove('hidden');
-    document.getElementById('kb-new-title').focus();
-  },
-  _hideAdd() {
-    document.getElementById('kb-add-modal').classList.add('hidden');
-    document.getElementById('kb-new-title').value = '';
-  },
-
-  async _addTask() {
-    const title = document.getElementById('kb-new-title').value.trim();
-    if (!title) return;
-    try {
-      const task = await apiFetch(`/teams/${this.teamId}/tasks`, { method: 'POST', body: JSON.stringify({ title }) });
-      this.tasks.unshift(task);
-      this._renderTasks();
-      this._hideAdd();
-    } catch (e) { if (e.status !== 401) console.error(e.message); }
-  },
-
-  async _delete(id) {
-    try {
-      await apiFetch(`/tasks/${id}`, { method: 'DELETE' });
-      this.tasks = this.tasks.filter(t => t.id !== id);
-      this._renderTasks();
-    } catch (e) { if (e.status !== 401) console.error(e.message); }
   },
 };

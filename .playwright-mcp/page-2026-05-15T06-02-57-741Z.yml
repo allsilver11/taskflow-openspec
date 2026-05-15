@@ -1,7 +1,0 @@
-- generic [ref=e4]:
-  - heading "TaskFlow" [level=1] [ref=e5]
-  - paragraph [ref=e6]: 팀 칸반 + 채팅
-  - textbox "이메일" [ref=e7]
-  - textbox "비밀번호 (8자 이상)" [ref=e8]
-  - button "로그인" [ref=e9] [cursor=pointer]
-  - button "회원가입" [ref=e10] [cursor=pointer]

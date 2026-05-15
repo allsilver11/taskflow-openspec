@@ -8,3 +8,6 @@ venv/
 .vercel/
 node_modules/
 storyboard_text.txt
+.playwright-mcp/
+*.png
+*.jpeg

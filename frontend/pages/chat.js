@@ -10,10 +10,17 @@ const ChatPage = {
 
     document.getElementById('app').innerHTML = `
       <div class="flex flex-col" style="height:100vh">
-        <header class="bg-teal-600 text-white px-5 py-3 flex items-center gap-3 flex-shrink-0">
-          <button onclick="navigate('#kanban')" class="text-sm opacity-80 hover:opacity-100">← 칸반</button>
-          <span class="font-bold">${this.teamName} 채팅</span>
+        <header class="bg-teal-600 text-white px-5 py-3 flex justify-between items-center flex-shrink-0">
+          <div class="flex items-center gap-3">
+            <button onclick="navigate('#teams')" class="text-sm opacity-80 hover:opacity-100">← 팀 목록</button>
+            <span class="font-bold">${this.teamName}</span>
+          </div>
+          <span class="text-sm opacity-70">${Auth.getUser()?.email || ''}</span>
         </header>
+        <nav class="bg-white border-b flex gap-0 flex-shrink-0">
+          <button onclick="navigate('#kanban')" class="px-6 py-2.5 text-sm font-medium text-gray-400 hover:text-gray-600">칸반</button>
+          <button class="px-6 py-2.5 text-sm font-medium border-b-2 border-teal-600 text-teal-600">채팅</button>
+        </nav>
         <div id="cp-msgs" class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50"></div>
         <div class="border-t bg-white p-3 flex gap-2">
           <input id="cp-input" type="text" placeholder="메시지 입력..."

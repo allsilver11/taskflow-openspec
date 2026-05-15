@@ -2,7 +2,6 @@ const KanbanPage = {
   teamId: null,
   teamName: null,
   tasks: [],
-  lastMsgTime: null,
 
   render() {
     this.teamId = localStorage.getItem('currentTeamId');
@@ -23,38 +22,27 @@ const KanbanPage = {
           </div>
         </header>
 
-        <!-- Body: Kanban + Chat -->
-        <div class="flex flex-1 overflow-hidden">
+        <!-- Tab Nav -->
+        <nav class="bg-white border-b flex gap-0 flex-shrink-0">
+          <button class="px-6 py-2.5 text-sm font-medium border-b-2 border-teal-600 text-teal-600">칸반</button>
+          <button onclick="navigate('#chat')" class="px-6 py-2.5 text-sm font-medium text-gray-400 hover:text-gray-600">채팅</button>
+        </nav>
 
-          <!-- Kanban -->
-          <div class="flex-1 overflow-auto p-4">
-            <div class="flex gap-4 h-full min-h-0">
-              ${['TODO', 'DOING', 'DONE'].map(col => `
-                <div class="flex-1 flex flex-col min-w-0">
-                  <div class="flex justify-between items-center mb-2 px-1">
-                    <h2 class="font-bold text-gray-600 text-sm tracking-wide">${col}</h2>
-                    ${col === 'TODO' ? `<button onclick="KanbanPage._showAdd()" class="text-teal-600 hover:text-teal-800 text-xl font-light leading-none">+</button>` : ''}
-                  </div>
-                  <div id="col-${col}"
-                       class="flex-1 bg-gray-100 rounded-xl p-2 space-y-2 min-h-24"
-                       ondragover="event.preventDefault()"
-                       ondrop="KanbanPage._drop(event,'${col}')">
-                  </div>
-                </div>`).join('')}
-            </div>
-          </div>
-
-          <!-- Chat Panel -->
-          <div class="w-72 flex flex-col border-l bg-white flex-shrink-0">
-            <div class="px-4 py-3 border-b text-sm font-semibold text-gray-600">채팅</div>
-            <div id="kb-msgs" class="flex-1 overflow-y-auto p-3 space-y-2 text-sm"></div>
-            <div class="border-t p-2 flex gap-2">
-              <input id="kb-chat-input" type="text" placeholder="메시지..."
-                     class="flex-1 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
-                     onkeydown="if(event.key==='Enter') KanbanPage._sendMsg()">
-              <button onclick="KanbanPage._sendMsg()"
-                      class="bg-teal-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-teal-700">전송</button>
-            </div>
+        <!-- Kanban Board -->
+        <div class="flex-1 overflow-auto p-4">
+          <div class="flex gap-4 h-full">
+            ${['TODO', 'DOING', 'DONE'].map(col => `
+              <div class="flex-1 flex flex-col min-w-0">
+                <div class="flex justify-between items-center mb-2 px-1">
+                  <h2 class="font-bold text-gray-600 text-sm tracking-wide">${col}</h2>
+                  ${col === 'TODO' ? `<button onclick="KanbanPage._showAdd()" class="text-teal-600 hover:text-teal-800 text-xl font-light leading-none">+</button>` : ''}
+                </div>
+                <div id="col-${col}"
+                     class="flex-1 bg-gray-100 rounded-xl p-2 space-y-2 min-h-24"
+                     ondragover="event.preventDefault()"
+                     ondrop="KanbanPage._drop(event,'${col}')">
+                </div>
+              </div>`).join('')}
           </div>
         </div>
       </div>
@@ -75,8 +63,6 @@ const KanbanPage = {
 
     document.getElementById('kb-logout').onclick = () => { Auth.logout(); navigate('#login'); };
     this._loadTasks();
-    this._loadMsgs();
-    window._pollingInterval = setInterval(() => this._pollMsgs(), 5000);
   },
 
   async _loadTasks() {
@@ -146,59 +132,6 @@ const KanbanPage = {
       await apiFetch(`/tasks/${id}`, { method: 'DELETE' });
       this.tasks = this.tasks.filter(t => t.id !== id);
       this._renderTasks();
-    } catch (e) { console.error(e.message); }
-  },
-
-  async _loadMsgs() {
-    try {
-      const msgs = await apiFetch(`/teams/${this.teamId}/messages`);
-      this._renderMsgs(msgs, false);
-      if (msgs.length) this.lastMsgTime = msgs[msgs.length - 1].created_at;
-    } catch (e) { console.error(e.message); }
-  },
-
-  async _pollMsgs() {
-    if (!document.getElementById('kb-msgs')) return;
-    try {
-      const url = this.lastMsgTime
-        ? `/teams/${this.teamId}/messages?since=${encodeURIComponent(this.lastMsgTime)}`
-        : `/teams/${this.teamId}/messages`;
-      const msgs = await apiFetch(url);
-      if (msgs.length) {
-        this._renderMsgs(msgs, true);
-        this.lastMsgTime = msgs[msgs.length - 1].created_at;
-      }
-    } catch (e) { console.error(e.message); }
-  },
-
-  _renderMsgs(msgs, append) {
-    const el = document.getElementById('kb-msgs');
-    if (!el) return;
-    const me = Auth.getUser()?.id;
-    const html = msgs.map(m => {
-      const mine = m.user_id === me;
-      const time = new Date(m.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-      return `<div class="${mine ? 'text-right' : ''}">
-        <div class="text-xs text-gray-400 mb-0.5">${mine ? '' : m.sender_email + ' · '}${time}</div>
-        <span class="inline-block rounded-xl px-3 py-1.5 text-sm max-w-[85%] break-words
-                     ${mine ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-800'}">${m.content}</span>
-      </div>`;
-    }).join('');
-    if (append) el.insertAdjacentHTML('beforeend', html);
-    else el.innerHTML = html;
-    el.scrollTop = el.scrollHeight;
-  },
-
-  async _sendMsg() {
-    const input = document.getElementById('kb-chat-input');
-    const content = input.value.trim();
-    if (!content) return;
-    try {
-      await apiFetch(`/teams/${this.teamId}/messages`, {
-        method: 'POST', body: JSON.stringify({ content }),
-      });
-      input.value = '';
-      await this._pollMsgs();
     } catch (e) { console.error(e.message); }
   },
 };

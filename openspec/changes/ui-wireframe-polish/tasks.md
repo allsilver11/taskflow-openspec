@@ -66,4 +66,4 @@
 - [x] 10.1 `frontend/pages/kanban.js` — _loadMembers에서 isOwner 판별 (is_owner 필드)
 - [x] 10.2 `frontend/pages/kanban.js` — 카드 ✕ 버튼: creator 또는 isOwner인 경우만 표시
 - [x] 10.3 `frontend/pages/kanban.js` — 상세 모달 🗑 버튼: creator 또는 isOwner인 경우만 표시
-- [x] 10.4 `frontend/pages/kanban.js` — 담당자 드롭다운에 역할 표시 (이메일 (owner/member))
+- [x] 10.4 `frontend/pages/kanban.js` — 담당자 드롭다운 이메일만 표시 (역할 레이블 제거)

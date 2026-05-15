@@ -66,8 +66,8 @@
 
 ## 9. Vercel 배포
 
-- [ ] 9.1 Vercel 프로젝트 생성 및 로컬 연결
-- [ ] 9.2 Neon DB Vercel Integration 연결 (DATABASE_URL 자동 주입 확인)
-- [ ] 9.3 SECRET_KEY 환경변수 Vercel에 설정
-- [ ] 9.4 `vercel --prod` 배포 및 동작 확인 (5분 이내 완료)
+- [x] 9.1 Vercel 프로젝트 생성 및 로컬 연결
+- [x] 9.2 Neon DB 연결 (DATABASE_URL 환경변수 설정)
+- [x] 9.3 SECRET_KEY 환경변수 Vercel에 설정
+- [x] 9.4 `vercel --prod` 배포 및 동작 확인 (5분 이내 완료)
 - [ ] 9.5 배포된 URL에서 전체 플로우 수동 검증 (회원가입 → 팀 생성 → 칸반 → 채팅)

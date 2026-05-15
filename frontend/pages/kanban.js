@@ -141,7 +141,7 @@ const KanbanPage = {
       const sel = document.getElementById('kb-new-assignee');
       if (sel) {
         sel.innerHTML = '<option value="">담당자 없음</option>' +
-          this.members.map(m => `<option value="${m.id}">${m.email} (${m.is_owner ? '★리더' : '멤버'})</option>`).join('');
+          this.members.map(m => `<option value="${m.id}">${m.email} (${m.is_owner ? '리더' : '멤버'})</option>`).join('');
       }
     } catch (e) { if (e.status !== 401) console.error(e.message); }
   },
@@ -275,7 +275,7 @@ const KanbanPage = {
     const sel = document.getElementById('kb-new-assignee');
     if (sel && this.members.length) {
       sel.innerHTML = '<option value="">담당자 없음</option>' +
-        this.members.map(m => `<option value="${m.id}">${m.email} (${m.is_owner ? '★리더' : '멤버'})</option>`).join('');
+        this.members.map(m => `<option value="${m.id}">${m.email} (${m.is_owner ? '리더' : '멤버'})</option>`).join('');
     }
   },
 
@@ -308,7 +308,7 @@ const KanbanPage = {
     const assigneeEmail = task.assignee_id ? (this.members.find(m => m.id === task.assignee_id)?.email || '') : '';
     const createdAt = task.created_at ? new Date(task.created_at).toLocaleString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
     const memberOptions = '<option value="">담당자 없음</option>' +
-      this.members.map(m => `<option value="${m.id}" ${m.id === task.assignee_id ? 'selected' : ''}>${m.email} (${m.is_owner ? '★리더' : '멤버'})</option>`).join('');
+      this.members.map(m => `<option value="${m.id}" ${m.id === task.assignee_id ? 'selected' : ''}>${m.email} (${m.is_owner ? '리더' : '멤버'})</option>`).join('');
 
     document.getElementById('kb-detail-content').innerHTML = `
       <div class="flex justify-between items-center mb-4">

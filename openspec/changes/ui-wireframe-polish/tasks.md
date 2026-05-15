@@ -60,3 +60,10 @@
 - [x] 9.4 `frontend/pages/members.js` — GET /teams/{id}/members 호출 후 목록 렌더링
 - [x] 9.5 `frontend/pages/members.js` — ★ owner 구분, 가입일 표시
 - [x] 9.6 `frontend/index.html` — members.js 스크립트 태그 추가
+
+## 10. 권한 UI 및 역할 표시
+
+- [x] 10.1 `frontend/pages/kanban.js` — _loadMembers에서 isOwner 판별 (is_owner 필드)
+- [x] 10.2 `frontend/pages/kanban.js` — 카드 ✕ 버튼: creator 또는 isOwner인 경우만 표시
+- [x] 10.3 `frontend/pages/kanban.js` — 상세 모달 🗑 버튼: creator 또는 isOwner인 경우만 표시
+- [x] 10.4 `frontend/pages/kanban.js` — 담당자 드롭다운에 역할 표시 (이메일 (리더/멤버))
